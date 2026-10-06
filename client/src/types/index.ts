@@ -6,6 +6,44 @@ export type UserRole =
   | 'HOD'
   | 'ADMIN';
 
+export interface User {
+  id: string;
+  _id?: string;
+  name: string;
+  email: string;
+  picture?: string;
+  role: UserRole;
+  department?: string | { _id: string; name: string; code: string } | null;
+  assignedLabs?: string[] | { _id: string; name: string; code: string }[];
+}
+
+export interface Laboratory {
+  _id: string;
+  name: string;
+  code: string;
+  building: string;
+  department: string | { _id: string; name: string; code: string };
+  assistants: User[];
+  isActive: boolean;
+}
+
+export interface Computer {
+  _id: string;
+  assetTag: string;
+  lab: string;
+  label: string;
+  processor: string;
+  ram: string;
+  storage: string;
+  status: 'OPERATIONAL' | 'UNDER_MAINTENANCE' | 'DECOMMISSIONED';
+  isActive: boolean;
+  activeTicket?: {
+    _id: string;
+    ticketId: string;
+    status: string;
+  } | null;
+}
+
 export type TicketStatus =
   | 'OPEN'
   | 'ASSIGNED'
@@ -18,67 +56,50 @@ export type TicketStatus =
   | 'REJECTED'
   | 'CANCELLED';
 
+export type TicketCategory = 'HARDWARE' | 'SOFTWARE' | 'NETWORK' | 'ELECTRICAL' | 'OTHER';
+
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  picture?: string;
-  role: UserRole;
-  department?: string;
-  assignedLabs?: string[];
-  isActive: boolean;
-}
-
-export interface Laboratory {
-  id: string;
-  name: string;
-  code: string;
-  building: string;
-  department: string;
-  assistants: string[];
-  isActive: boolean;
-  qrGeneratedAt?: string;
-}
-
-export interface Computer {
-  id: string;
-  assetTag: string;
-  lab: string;
-  label: string;
-  processor: string;
-  ram: string;
-  storage: string;
-  purchaseDate?: string;
-  warrantyExpiry?: string;
-  vendor?: string;
-  status: 'ACTIVE' | 'UNDER_MAINTENANCE' | 'RETIRED';
+export interface TicketTimelineEntry {
+  status: TicketStatus;
+  actor: {
+    id: string;
+    name: string;
+    role: string;
+  };
+  timestamp: string;
+  note?: string;
 }
 
 export interface Ticket {
-  id: string;
+  _id: string;
   ticketId: string;
-  computer: Computer | string;
-  lab: Laboratory | string;
-  reportedBy: User | string;
-  category: string;
+  computer: Computer;
+  lab: Laboratory;
+  department: { _id: string; name: string; code: string };
+  reportedBy: { _id: string; name: string; email: string };
+  assignedTo?: { _id: string; name: string; email: string } | null;
+  category: TicketCategory;
+  priority: TicketPriority;
   description: string;
   images: string[];
-  priority: TicketPriority;
   status: TicketStatus;
   isActive: boolean;
-  assignedTo?: User | string;
+  timeline: TicketTimelineEntry[];
+  resolutionNotes?: string | null;
+  testedOk?: boolean | null;
+  closedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
+export interface NotificationItem {
+  _id: string;
+  user: string;
+  title: string;
+  message: string;
+  type: 'INFO' | 'WARNING' | 'ALERT' | 'SUCCESS';
+  read: boolean;
+  ticketId?: string | null;
+  createdAt: string;
 }

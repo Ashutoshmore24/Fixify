@@ -12,9 +12,11 @@
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspaces",
+    "seed": "tsx scripts/seed.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "prettier": "^3.2.5"
   }
 }

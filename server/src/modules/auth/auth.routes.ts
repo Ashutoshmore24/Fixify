@@ -16,7 +16,7 @@ router.post(
 // Dev-only impersonation login: only available when NODE_ENV === 'development' or 'test'
 router.post(
   ['/dev-login', '/impersonate'],
-  (req, res, next) => {
+  (_req, _res, next) => {
     if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
       return next(new NotFoundError('The requested endpoint was not found on this server'));
     }

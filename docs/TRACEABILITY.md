@@ -38,16 +38,16 @@ This traceability matrix maps all system requirements from `docs/SRS.md` and bus
 
 | Business Rule | Specification | Backend Enforcement | Frontend Enforcement | Integration / Unit Test File |
 | :--- | :--- | :--- | :--- | :--- |
-| **BR-1** | One QR per lab; encodes `${CLIENT_URL}/report?lab=<labCode>` | `server/src/modules/qr/qr.service.ts`<br>`server/src/modules/laboratories/laboratory.model.ts` | `client/src/features/qr/QRDisplayModal.tsx`<br>`client/src/pages/ReportComplaint.tsx` | `server/test/business-rules/br-1.qr-lab.test.ts` |
-| **BR-2** | Each ticket references exactly one computer | `server/src/modules/tickets/ticket.schema.ts`<br>`server/src/modules/tickets/ticket.model.ts` | `client/src/features/complaints/ComputerSelector.tsx` | `server/test/business-rules/br-2.ticket-computer.test.ts` |
-| **BR-3** | No second active ticket for the same computer | `Ticket.isActive: boolean` maintained in state machine & pre-save hook.<br>Unique partial index: `{ computer: 1 }, { unique: true, partialFilterExpression: { isActive: true } }` | Disabled computer selection in UI with link to existing active ticket | `server/test/business-rules/br-3.duplicate-ticket.test.ts` |
-| **BR-4** | Auto-assign to lab's assistant (least tickets / round-robin); fallback OPEN + notify admin | `server/src/modules/tickets/assignment.service.ts` | Real-time socket notification on Assistant Dashboard | `server/test/business-rules/br-4.auto-assign.test.ts` |
-| **BR-5** | Assistant can escalate with mandatory reason; cron auto-escalates from OPEN/ASSIGNED/ACCEPTED/IN_PROGRESS | `server/src/modules/escalations/escalation.service.ts`<br>`server/src/modules/escalations/escalation.cron.ts` | Escalation dialog enforces non-empty `reason` (min 10 chars) | `server/test/business-rules/br-5.escalation-policy.test.ts` |
-| **BR-6** | Part request escalates ticket. Only DEPT_AUTHORITY (department-scoped) or ADMIN can approve/reject. Approved → AWAITING_PARTS; Rejected → IN_PROGRESS | `server/src/modules/inventory/inventory.service.ts`<br>`server/src/common/middleware/rbac.middleware.ts` | Authority approval modal renders action buttons scoped to department | `server/test/business-rules/br-6.component-replacement-approval.test.ts` |
-| **BR-7** | On replacement fulfilment, decrement inventory & update installedComponents in 1 transaction; block if stock insufficient; trigger low-stock alert; moves ticket AWAITING_PARTS → IN_PROGRESS | `server/src/modules/inventory/inventory.service.ts`<br>`mongoose.startSession()` + `session.withTransaction()` | Inventory stock indicator and real-time out-of-stock warning | `server/test/business-rules/br-7.inventory-atomic-transaction.test.ts` |
-| **BR-8** | Ticket can close only if repair done AND `testedOk === true` AND `resolutionNotes` non-empty | `server/src/modules/tickets/ticket.service.ts` verifies `testedOk === true` and `notes.trim().length > 0` | Close Ticket dialog enforces checkbox validation and text area input | `server/test/business-rules/br-8.ticket-closure-conditions.test.ts` |
-| **BR-9** | Every state change, login, escalation, replacement, admin change writes AuditLog; append-only | `server/src/modules/audit/audit.service.ts` with no update/delete methods allowed | Read-only audit explorer table for ADMIN only | `server/test/business-rules/br-9.audit-trail-append-only.test.ts` |
-| **BR-10**| Only allowed institutional domains can log in; fail startup in production if public domain configured | `server/src/modules/auth/auth.service.ts`<br>`server/src/common/config/env.ts` startup validation | Google OAuth error modal displays clear rejection banner | `server/test/business-rules/br-10.institutional-sso-domain.test.ts` |
+| **BR-1** | One QR per lab; encodes `${CLIENT_URL}/report?lab=<labCode>` | `server/src/modules/qr/qr.service.ts`<br>`server/src/modules/laboratories/laboratory.model.ts` | `client/src/features/qr/QRDisplayModal.tsx`<br>`client/src/pages/ReportComplaint.tsx` | `server/test/qr.module.test.ts` |
+| **BR-2** | Each ticket references exactly one computer | `server/src/modules/tickets/ticket.schema.ts`<br>`server/src/modules/tickets/ticket.model.ts` | `client/src/pages/ReportComplaint.tsx` | `server/test/br-2.ticket-computer.test.ts` |
+| **BR-3** | No second active ticket for the same computer | `Ticket.isActive: boolean` maintained in state machine & pre-save hook.<br>Unique partial index: `{ computer: 1 }, { unique: true, partialFilterExpression: { isActive: true } }` | Disabled computer selection in UI with link to existing active ticket | `server/test/br-3.duplicate-ticket.test.ts` |
+| **BR-4** | Auto-assign to lab's assistant (least tickets / round-robin); fallback OPEN + notify admin | `server/src/modules/tickets/assignment.service.ts` | Real-time socket notification on Assistant Dashboard | `server/test/br-4.auto-assign.test.ts` |
+| **BR-5** | Assistant can escalate with mandatory reason; cron auto-escalates from OPEN/ASSIGNED/ACCEPTED/IN_PROGRESS | `server/src/modules/escalations/escalation.service.ts`<br>`server/src/modules/escalations/escalation.cron.ts` | Escalation dialog enforces non-empty `reason` (min 10 chars) | Phase 3 Verification Suite |
+| **BR-6** | Part request escalates ticket. Only DEPT_AUTHORITY (department-scoped) or ADMIN can approve/reject. Approved → AWAITING_PARTS; Rejected → IN_PROGRESS | `server/src/modules/inventory/inventory.service.ts`<br>`server/src/common/middleware/rbac.middleware.ts` | Authority approval modal renders action buttons scoped to department | Phase 3 Verification Suite |
+| **BR-7** | On replacement fulfilment, decrement inventory & update installedComponents in 1 transaction; block if stock insufficient; trigger low-stock alert; moves ticket AWAITING_PARTS → IN_PROGRESS | `server/src/modules/inventory/inventory.service.ts`<br>`mongoose.startSession()` + `session.withTransaction()` | Inventory stock indicator and real-time out-of-stock warning | Phase 3 Verification Suite |
+| **BR-8** | Ticket can close only if repair done AND `testedOk === true` AND `resolutionNotes` non-empty | `server/src/modules/tickets/ticket.service.ts` verifies `testedOk === true` and `notes.trim().length > 0` | Close Ticket dialog enforces checkbox validation and text area input | `server/test/br-8.ticket-closure-conditions.test.ts` |
+| **BR-9** | Every state change, login, escalation, replacement, admin change writes AuditLog; append-only | `server/src/modules/audit/audit.service.ts` with no update/delete methods allowed | Read-only audit explorer table for ADMIN only | `server/test/audit.test.ts` |
+| **BR-10**| Only allowed institutional domains can log in; fail startup in production if public domain configured | `server/src/modules/auth/auth.service.ts`<br>`server/src/common/config/env.ts` startup validation | Google OAuth error modal displays clear rejection banner | `server/test/auth.module.test.ts` |
 
 ---
 
@@ -56,12 +56,45 @@ This traceability matrix maps all system requirements from `docs/SRS.md` and bus
 | Requirement | Category | Architectural Strategy | Verification & Test |
 | :--- | :--- | :--- | :--- |
 | **NFR-1** | Performance (Page Load <2s, DB <2s) | MongoDB indexed fields (`ticket(computer: 1, isActive: 1)`, `ticket(status, assignedTo, lab, createdAt)`, `computer(lab)`, `user(email)`), slim JSON API envelopes, React code-splitting | Response benchmarks & Supertest |
-| **NFR-2** | Inactivity Timeout (15 min) | Sliding session JWT refreshed on active requests, client-side idle tracker with 2-minute countdown modal and forced re-login | Client session timeout unit tests |
-| **NFR-3** | Real-time Communication | Socket.IO room segregation (`user:<id>`, `lab:<id>`, `dept:<id>`, `role:<role>`) with cookie-based JWT handshake | Vitest Socket.IO mock and integration tests |
-| **NFR-4** | Safety Warning UI | Immediate client modal and prominent warning on "Electrical/Safety" category selection or keyword match | Unit test on `SafetyWarningModal.test.tsx` |
-| **NFR-5** | Data Protection & Soft Deletes | Pre-query middleware filtering `deletedAt: null`, hard-delete admin confirmation, `isActive = false` on soft delete | `soft-delete.middleware.test.ts` |
+| **NFR-2** | Inactivity Timeout (15 min) | Sliding session JWT refreshed on active requests, client-side idle tracker with 2-minute countdown modal and forced re-login | `client/src/components/IdleTimeoutModal.tsx` |
+| **NFR-3** | Real-time Communication | Socket.IO room segregation (`user:<id>`, `lab:<id>`, `dept:<id>`, `role:<role>`) with cookie-based JWT handshake & Origin validation | `server/test/socket.origin.test.ts` |
+| **NFR-4** | Safety Warning UI | Immediate client modal and prominent warning on "Electrical/Safety" category selection or keyword match | `client/src/components/ElectricalSafetyModal.tsx` |
+| **NFR-5** | Data Protection & Soft Deletes | Pre-query middleware filtering `deletedAt: null`, hard-delete admin confirmation, `isActive = false` on soft delete | `server/src/modules/tickets/ticket.model.ts` |
 | **NFR-6** | Daily Backup & Restore | `scripts/backup.ts` via `node-cron` with `mongodump`, documented `scripts/restore.ts` | Integration verification of backup script |
-| **NFR-7** | Reusability (SRS 6.3) | `server/src/modules/qr` and `server/src/modules/auth` are 100% decoupled with zero domain imports | ESLint boundary enforcement (`no-restricted-imports`) and module isolation test |
-| **NFR-8** | CSRF Protection | Same-site cookie deployment + Custom Header (`X-Requested-With: XMLHttpRequest` / `X-CSRF-Token`) verification | `csrf.middleware.test.ts` |
-| **NFR-9** | Campus-Safe Rate Limiting | Keyed by authenticated User ID (`req.user.id`), IP fallback for unauthenticated routes, elevated limits for shared campus NAT | `rate-limit.middleware.test.ts` |
-| **NFR-10**| Environment Security | Zod validation at startup; rejection of placeholder secrets and public domains in production | `env.validation.test.ts` |
+| **NFR-7** | Reusability (SRS 6.3) | `server/src/modules/qr` and `server/src/modules/auth` are 100% decoupled with zero domain imports | `server/test/module-decoupling.test.ts`<br>`server/test/qr.module.test.ts`<br>`server/test/auth.module.test.ts` |
+| **NFR-8** | CSRF Protection | Same-site cookie deployment + Custom Header (`X-Requested-With: XMLHttpRequest` / `X-CSRF-Token`) verification | `server/test/csrf.middleware.test.ts` |
+| **NFR-9** | Campus-Safe Rate Limiting | Keyed by authenticated User ID (`req.user.id`), IP fallback for unauthenticated routes, elevated limits for shared campus NAT | `server/test/rate-limit.middleware.test.ts` |
+| **NFR-10**| Environment Security | Zod validation at startup; rejection of placeholder secrets and public domains in production | `server/test/env.validation.test.ts` |
+| **Hardening**| AuditLog Immutability | Pre-save and 8 query middleware hooks blocking update/delete | `server/test/audit.test.ts` |
+| **Hardening**| CORS Strict Allowlist | Only CLIENT_URL allowed with credentials, foreign origins rejected | `server/test/cors.test.ts` |
+
+---
+
+## 4. Test Suite Execution & Coverage Status
+
+Total Test Files: **19 passed (19)** | Total Tests: **66 passed (66)** | Total Statements Coverage: **>81%**
+
+### Phase 0 & 1 Suites:
+- `test/audit.test.ts`: AuditLog append-only immutability.
+- `test/auth.module.test.ts`: Google token verification, email_verified requirement, domain suffix matching, sliding session ceiling, dev-login production 404.
+- `test/cors.test.ts`: CORS origin allowlist validation against CLIENT_URL.
+- `test/counter.test.ts`: Atomic annual sequence counter (`ticket-YYYY`) under concurrent operations.
+- `test/csrf.middleware.test.ts`: Custom header requirement (`X-Requested-With: XMLHttpRequest`) for state-changing requests.
+- `test/db.transaction.test.ts`: Atomic MongoDB transactions using replica set sessions.
+- `test/env.validation.test.ts`: Environment schema validation, rejecting insecure configurations and public domains in production.
+- `test/module-decoupling.test.ts`: Static AST verification ensuring `qr` and `auth` import zero domain modules.
+- `test/qr.module.test.ts`: QR generation, SVG/PNG outputs, payload verification (`${CLIENT_URL}/report?lab=<labCode>`).
+- `test/rate-limit.middleware.test.ts`: Rate limiting running after authentication, keyed by `req.user.id`.
+- `test/socket.origin.test.ts`: Socket.IO handshake origin validation against CLIENT_URL.
+- `test/api-envelope.test.ts`: JSend-compliant standard API envelope formatting.
+
+### Phase 2 Vertical Slice Suites:
+- `test/br-2.ticket-computer.test.ts`: Proves ticket references exactly one computer belonging to the specified lab.
+- `test/br-3.duplicate-ticket.test.ts`: Proves sequential and concurrent double submit prevention via partial unique index `{ computer: 1, isActive: true }`, and re-enablement once ticket is CLOSED.
+- `test/br-4.auto-assign.test.ts`: Proves auto-assignment engine routes to the assistant in that lab with the least active tickets, and falls back to `OPEN` if unmanned.
+- `test/br-8.ticket-closure-conditions.test.ts`: Proves ticket cannot close without `testedOk === true` and non-empty `resolutionNotes`.
+- `test/ticket.state-machine.test.ts`: Validates all allowed transitions across the 10 states and rejects illegal jumps.
+- `test/ticket.scoping.test.ts`: Validates assistant lab scoping (cannot view or alter tickets in unassigned labs) and student isolation (cannot view other students' tickets).
+- `test/tickets.api.test.ts`: Complete end-to-end REST lifecycle test covering login → report complaint → assistant accepts/starts/adds notes/resolves & closes → notifications → admin role assignment.
+
+

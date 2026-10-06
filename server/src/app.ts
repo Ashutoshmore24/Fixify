@@ -9,6 +9,12 @@ import { campusRateLimiter } from './common/middleware/rate-limit.middleware';
 import { optionalAuth } from './modules/auth/auth.middleware';
 import { authRoutes } from './modules/auth/auth.routes';
 import { qrRoutes } from './modules/qr/qr.routes';
+import { departmentRoutes } from './modules/departments/department.routes';
+import { laboratoryRoutes } from './modules/laboratories/laboratory.routes';
+import { computerRoutes } from './modules/computers/computer.routes';
+import { userRoutes } from './modules/users/user.routes';
+import { ticketRoutes } from './modules/tickets/ticket.routes';
+import { notificationRoutes } from './modules/notifications/notification.routes';
 import { sendSuccess } from './common/utils/api-response';
 import { NotFoundError } from './common/errors/app-error';
 
@@ -74,6 +80,12 @@ export const createApp = (): Application => {
   // 8. API v1 Modules
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/qr', qrRoutes);
+  app.use('/api/v1/departments', departmentRoutes);
+  app.use('/api/v1/laboratories', laboratoryRoutes);
+  app.use('/api/v1/computers', computerRoutes);
+  app.use('/api/v1/users', userRoutes);
+  app.use('/api/v1/tickets', ticketRoutes);
+  app.use('/api/v1/notifications', notificationRoutes);
 
   // 9. 404 Route Catch-all
   app.use((_req: Request, _res: Response, next) => {
