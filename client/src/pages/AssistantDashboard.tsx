@@ -459,3 +459,5 @@ export const AssistantDashboard: React.FC = () => {
     </div>
   );
 };
+
+export default AssistantDashboard;

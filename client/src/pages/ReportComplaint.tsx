@@ -460,3 +460,5 @@ export const ReportComplaint: React.FC = () => {
     </div>
   );
 };
+
+export default ReportComplaint;
