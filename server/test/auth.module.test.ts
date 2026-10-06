@@ -184,6 +184,10 @@ describe('BR-10 Decoupled Auth Module & RBAC', () => {
         .set('X-Requested-With', 'XMLHttpRequest')
         .send({ email: 'admin@pccoe.org' });
 
+      if (res.status !== 404) {
+        console.error('PROD DEV-LOGIN RESPONSE:', res.status, res.body);
+      }
+
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('NOT_FOUND');
     } finally {

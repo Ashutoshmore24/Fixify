@@ -10,9 +10,10 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  // 1. Known AppError
-  if (err instanceof AppError) {
-    sendError(res, err.statusCode, err.code, err.message, err.details);
+  // 1. Known AppError (instanceof or statusCode property)
+  if (err instanceof AppError || ('statusCode' in err && typeof (err as { statusCode: unknown }).statusCode === 'number')) {
+    const appErr = err as AppError;
+    sendError(res, appErr.statusCode, appErr.code || 'ERROR', appErr.message, appErr.details);
     return;
   }
 

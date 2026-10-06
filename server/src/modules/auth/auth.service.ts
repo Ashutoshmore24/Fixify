@@ -146,7 +146,14 @@ export class AuthService {
    * Generates a refreshed JWT preserving the original session start time.
    */
   public static generateTokenFromPayload(payload: JwtTokenPayload): string {
-    return jwt.sign(payload, env.JWT_SECRET, {
+    const cleanPayload: JwtTokenPayload = {
+      id: payload.id,
+      email: payload.email,
+      role: payload.role,
+      name: payload.name,
+      sessionStartedAt: payload.sessionStartedAt || Date.now(),
+    };
+    return jwt.sign(cleanPayload, env.JWT_SECRET, {
       expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
     });
   }
