@@ -18,10 +18,10 @@ test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant 
     await expect(page).toHaveURL(/\/report\?lab=LAB-101/);
     await expect(page.locator('text=Advanced Computing Lab')).toBeVisible();
 
-    // 3. Action 1: Select Computer PC-01
-    const pc01Button = page.locator('div:has-text("PC-01")').first();
-    await expect(pc01Button).toBeVisible();
-    await pc01Button.click();
+    // 3. Action 1: Select first available non-busy Computer
+    const availablePc = page.locator('[data-testid^="pc-card-"]:not(:has-text("Busy"))').first();
+    await expect(availablePc).toBeVisible({ timeout: 15000 });
+    await availablePc.click();
 
     // Action 2: Select Category Hardware
     await page.click('button:has-text("Hardware")');
@@ -35,7 +35,7 @@ test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant 
     await expect(page.locator('text=1/3 Photos')).toBeVisible();
 
     // Submit the complaint
-    await page.click('button:has-text("Register Complaint")');
+    await page.click('[data-testid="submit-complaint-btn"]');
 
     // Verify success confirmation with sequential annual Ticket ID (REQ-1.8)
     await expect(page.locator('text=Complaint Registered')).toBeVisible();
@@ -49,9 +49,13 @@ test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant 
     await expect(page).toHaveURL(/\/my-complaints/);
     await expect(page.locator(`text=${ticketId}`)).toBeVisible();
 
-    // 5. Assistant signs in via fast role switcher
+    // 5. Assistant signs in via dev login
     await page.goto('/login');
-    await page.click('button:has-text("Lab Assistant Sharma")');
+    await page.waitForLoadState('networkidle');
+    const assistantBtn = page.locator('button:has-text("Lab Assistant Sharma")');
+    await expect(assistantBtn).toBeVisible({ timeout: 10000 });
+    await assistantBtn.click();
+    await page.waitForTimeout(500);
     await page.goto('/assistant');
 
     // Verify assistant dashboard metrics and ticket presence
@@ -92,7 +96,11 @@ test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant 
 
     // 6. Switch back to Student and verify closed status and timeline
     await page.goto('/login');
-    await page.click('button:has-text("Rahul Deshmukh")');
+    await page.waitForLoadState('networkidle');
+    const studentBtn = page.locator('button:has-text("Rahul Deshmukh")');
+    await expect(studentBtn).toBeVisible({ timeout: 10000 });
+    await studentBtn.click();
+    await page.waitForTimeout(500);
     await page.goto('/my-complaints');
 
     // Open ticket timeline

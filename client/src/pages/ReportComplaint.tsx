@@ -298,6 +298,7 @@ export const ReportComplaint: React.FC = () => {
               return (
                 <div
                   key={pc._id}
+                  data-testid={`pc-card-${pc.label}`}
                   onClick={() => {
                     if (!isBusy) {
                       setSelectedComputerId(pc._id);
@@ -449,6 +450,7 @@ export const ReportComplaint: React.FC = () => {
         {/* SUBMIT BUTTON */}
         <button
           type="submit"
+          data-testid="submit-complaint-btn"
           disabled={isSubmitting || !selectedComputerId || description.length < 10}
           className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-blue-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
         >
