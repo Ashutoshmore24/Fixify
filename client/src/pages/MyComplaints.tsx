@@ -195,3 +195,5 @@ export const MyComplaints: React.FC = () => {
     </div>
   );
 };
+
+export default MyComplaints;
