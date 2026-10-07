@@ -7,13 +7,15 @@ This document records architectural decisions, institutional assumptions, deploy
 ## 1. Resolution of SRS Appendix C (To Be Determined List)
 
 ### TBD-1: Institutional Email Domains & Public Domain Restriction
-- **SRS Question**: Final approved list of acceptable institutional email domains for Single Sign-On (SSO).
+- **SRS Question**: Final approved list of acceptable institutional email domains and authentication architecture.
 - **Resolution**:
-  - Configured through environment variable `ALLOWED_EMAIL_DOMAINS` as a comma-separated list of institutional domains (e.g., `pccoe.org,student.pccoe.org,faculty.pccoe.org`).
-  - **Strict Production Check**: Public email providers (such as `gmail.com`, `yahoo.com`, `outlook.com`, `hotmail.com`, `icloud.com`) are strictly prohibited in production. If `NODE_ENV=production` and any public domain is present in `ALLOWED_EMAIL_DOMAINS`, server startup fails immediately with a descriptive configuration error.
-  - In `NODE_ENV=development` only, test accounts and development domains may be used.
-  - Validation checks Google token payload `hd` (hosted domain) or verifies email suffix matches `ALLOWED_EMAIL_DOMAINS`.
-  - Also requires `email_verified: true` from Google OAuth payload. Non-matching domains receive HTTP 403 Forbidden with a clear institutional guidance message.
+  - **Firebase Authentication**: Client uses Firebase Web SDK (`firebase/auth`) for Email/Password and Google Sign-In. Client sends the resulting Firebase ID token to `POST /api/v1/auth/session`.
+  - **Backend Token Verification**: The server verifies the token using `firebase-admin` (`verifyIdToken` with `checkRevoked: true`).
+  - **Session Cookie**: After verifying the Firebase ID token, the server issues the existing `httpOnly` JWT session cookie (15-minute sliding session + 8-hour absolute maximum lifetime). CSRF protection, Socket.IO cookie auth, and rate limiting remain intact.
+  - **Password Storage**: Passwords are encrypted and managed exclusively by Firebase Authentication; institutional application servers never store, log, or handle passwords.
+  - **Domain Whitelist (BR-10)**: Configured through environment variable `ALLOWED_EMAIL_DOMAINS` as a comma-separated list of institutional domains (e.g., `pccoe.org,student.pccoe.org,faculty.pccoe.org`). Enforced on the server by exact match of the portion after `@`.
+  - **Strict Production Check**: Public email providers (such as `gmail.com`, `yahoo.com`, `outlook.com`, `hotmail.com`, `icloud.com`) are strictly prohibited in production. If `NODE_ENV=production` and any public domain is present in `ALLOWED_EMAIL_DOMAINS`, server startup fails immediately with a descriptive configuration error. Public domains are allowed only in `NODE_ENV=development`.
+  - **Email Verification**: Mandatory requirement of `email_verified: true` from the Firebase token. Non-verified emails and unauthorized domains receive HTTP 403 Forbidden with clear institutional guidance.
 
 ### TBD-2: Physical QR Code Format & Mobile Scanning
 - **SRS Question**: Physical dimensions, material durability, and adhesive specifications for physical lab placement.
@@ -39,13 +41,18 @@ This document records architectural decisions, institutional assumptions, deploy
 
 ## 2. Additional Architectural & Business Assumptions
 
-### 1. Initial Admin Provisioning & Role Hierarchy
-- At startup, if no Administrator exists, the user corresponding to `ADMIN_EMAIL` is automatically granted the `ADMIN` role upon first login.
-- When any new user logs in via Google OAuth for the first time:
-  - If email matches `ADMIN_EMAIL`, they receive `ADMIN`.
-  - If email matches faculty patterns (e.g. `faculty.pccoe.org`), they receive `FACULTY`.
-  - Otherwise, they default to `STUDENT`.
+### 1. Initial Admin Provisioning, Public Registration & Role Hierarchy
+- At startup or initial login, if a user's email matches `ADMIN_EMAIL`, they receive `ADMIN`.
+- **Public Signup Rules**: Public self-registration permits creation of `STUDENT` or `FACULTY` accounts only. Any role field provided by the client attempting to claim other roles (`LAB_ASSISTANT`, `DEPT_AUTHORITY`, `HOD`, `ADMIN`) is strictly ignored and rejected.
+- **Faculty Approval Rule**:
+  - If a faculty member registers with an email matching the official faculty pattern (e.g., domain `faculty.pccoe.org` or containing `faculty` or `prof`), their account is auto-approved (`approvalStatus: 'APPROVED'`).
+  - Otherwise, the faculty account is placed in `approvalStatus: 'PENDING_APPROVAL'` until an Administrator approves it. Users in `PENDING_APPROVAL` are restricted to a pending-approval informational screen.
+- **Profile Completion**:
+  - Students must complete their profile with `firstName`, `lastName`, `course`, `year`, `division`, and a unique `prn` matching `PRN_REGEX`.
+  - Faculty must complete their profile with `firstName`, `lastName`, `department`, and optional `employeeId`.
+  - Full application access is blocked until both `email_verified` is true and `profileComplete` is true.
 - Elevated roles (`LAB_ASSISTANT`, `DEPT_AUTHORITY`, `HOD`, `ADMIN`) and lab assignments can only be assigned by an `ADMIN`.
+- **Developer Impersonation**: Preserved for `NODE_ENV=development` only; permanently disabled and returning 404 in production.
 
 ### 2. Ticket Status Lifecycle & BR-3 Active Index
 - **Full Status Enum**:

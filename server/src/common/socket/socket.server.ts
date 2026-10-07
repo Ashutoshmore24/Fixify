@@ -19,9 +19,18 @@ const parseCookieString = (cookieString?: string): Record<string, string> => {
 };
 
 export const initSocketServer = (httpServer: HttpServer): SocketIOServer => {
+  const allowedOrigins = [
+    env.CLIENT_URL,
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+  ];
+
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: env.NODE_ENV === 'production' ? env.CLIENT_URL : allowedOrigins,
       credentials: true,
     },
     transports: ['websocket', 'polling'],
@@ -35,7 +44,11 @@ export const initSocketServer = (httpServer: HttpServer): SocketIOServer => {
       try {
         const originUrl = new URL(origin).origin;
         const clientOrigin = new URL(env.CLIENT_URL).origin;
-        if (originUrl !== clientOrigin) {
+        const isAllowed =
+          originUrl === clientOrigin ||
+          (env.NODE_ENV !== 'production' &&
+            /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(originUrl));
+        if (!isAllowed) {
           return next(new Error('Authentication error: Origin not allowed'));
         }
       } catch {

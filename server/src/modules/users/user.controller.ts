@@ -8,7 +8,7 @@ export class UserController {
   static async updateRole(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const { role, department, assignedLabs } = req.body;
+      const { role, department, assignedLabs, approvalStatus } = req.body;
 
       const user = await User.findById(id);
       if (!user) {
@@ -22,6 +22,9 @@ export class UserController {
       }
       if (assignedLabs !== undefined) {
         user.assignedLabs = assignedLabs;
+      }
+      if (approvalStatus !== undefined) {
+        user.approvalStatus = approvalStatus;
       }
 
       await user.save();

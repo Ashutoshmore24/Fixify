@@ -4,8 +4,8 @@ import { authenticate } from '../auth/auth.middleware';
 
 const router = Router();
 
-router.use(authenticate);
 router.get('/', DepartmentController.getAll);
+router.use(authenticate);
 router.get('/:id', DepartmentController.getById);
 
 export const departmentRoutes = router;

@@ -6,6 +6,8 @@ export type UserRole =
   | 'HOD'
   | 'ADMIN';
 
+export type ApprovalStatus = 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
+
 export interface User {
   id: string;
   _id?: string;
@@ -15,6 +17,16 @@ export interface User {
   role: UserRole;
   department?: string | { _id: string; name: string; code: string } | null;
   assignedLabs?: string[] | { _id: string; name: string; code: string }[];
+  firebaseUid?: string;
+  firstName?: string;
+  lastName?: string;
+  course?: string;
+  year?: 'FE' | 'SE' | 'TE' | 'BE' | 'ME_1' | 'ME_2' | 'PHD' | string;
+  division?: string;
+  prn?: string;
+  employeeId?: string;
+  profileComplete?: boolean;
+  approvalStatus?: ApprovalStatus;
 }
 
 export interface Laboratory {

@@ -148,8 +148,8 @@ export class TicketService {
       emitToLab(lab._id.toString(), 'ticket:created', ticket);
 
       return ticket;
-    } catch (error: any) {
-      if (error.code === 11000) {
+    } catch (error: unknown) {
+      if ((error as { code?: number }).code === 11000) {
         throw new ConflictError(
           `BR-3 Violation: An active ticket already exists for computer ${computer.label}`
         );
@@ -185,7 +185,7 @@ export class TicketService {
       const dbUser = await User.findById(user.id);
       const assignedLabs = (dbUser?.assignedLabs || []).map((id) => id.toString());
       if (!assignedLabs.includes(ticket.lab._id.toString())) {
-        throw new ForbiddenError(`Forbidden: You are not assigned to Laboratory ${(ticket.lab as any).code}`);
+        throw new ForbiddenError(`Forbidden: You are not assigned to Laboratory ${(ticket.lab as unknown as { code?: string }).code}`);
       }
     } else if (user.role === 'DEPT_AUTHORITY' || user.role === 'HOD') {
       const dbUser = await User.findById(user.id);

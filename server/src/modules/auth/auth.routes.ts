@@ -1,16 +1,32 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { validateRequest } from '../../common/middleware/validate.middleware';
-import { googleLoginSchema, devLoginSchema } from './auth.schema';
+import { sessionLoginSchema, registerProfileSchema, devLoginSchema } from './auth.schema';
 import { authenticate } from './auth.middleware';
 import { NotFoundError } from '../../common/errors/app-error';
 
 const router = Router();
 
+// Primary Firebase session endpoint
+router.post(
+  '/session',
+  validateRequest({ body: sessionLoginSchema }),
+  AuthController.sessionLogin
+);
+
+// Backward compatibility alias
 router.post(
   '/google',
-  validateRequest({ body: googleLoginSchema }),
+  validateRequest({ body: sessionLoginSchema }),
   AuthController.googleLogin
+);
+
+// Academic profile completion endpoint
+router.post(
+  '/register-profile',
+  authenticate,
+  validateRequest({ body: registerProfileSchema }),
+  AuthController.registerProfile
 );
 
 // Dev-only impersonation login: only available when NODE_ENV === 'development' or 'test'
