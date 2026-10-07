@@ -41,11 +41,14 @@ export function getFriendlyAuthErrorMessage(err: unknown): string {
   // Backend API response errors take precedence
   if (error?.response?.data?.error) {
     const apiErr = error.response.data.error;
+    if (apiErr.code === 'AUTH_MISCONFIGURED') {
+      return 'Server authentication is temporarily unavailable. The administrator has been notified.';
+    }
     if (apiErr.code === 'UNVERIFIED_EMAIL') {
       return 'Please verify your institutional email address before signing in.';
     }
     if (apiErr.code === 'UNAUTHORIZED_DOMAIN') {
-      return apiErr.message || 'Access denied: Only authorized institutional email domains (@pccoe.org) are permitted.';
+      return apiErr.message || 'Access denied: Only authorized email domains (@pccoepune.org, @gmail.com) are permitted.';
     }
     if (apiErr.code === 'DUPLICATE_PRN') {
       return 'A student with this PRN is already registered in the system.';

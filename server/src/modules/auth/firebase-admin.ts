@@ -43,45 +43,72 @@ export function getFirebaseAdminApp(): App {
   if (env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     try {
       const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      if (typeof serviceAccount.private_key === 'string') {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
       firebaseApp = initializeApp({
         credential: cert(serviceAccount),
       });
-      logger.info('Firebase Admin initialized with FIREBASE_SERVICE_ACCOUNT_JSON');
+      logger.info(
+        { projectId: serviceAccount.project_id },
+        'Firebase Admin initialized with FIREBASE_SERVICE_ACCOUNT_JSON'
+      );
       return firebaseApp;
     } catch (err) {
       logger.error(err, 'Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON');
     }
   }
 
-  // 2. Check if file path is provided in env
-  if (env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+  // 2. Check candidate service account file paths
+  const candidatePaths = [
+    env.FIREBASE_SERVICE_ACCOUNT_PATH,
+    './serviceAccountKey.json',
+    'serviceAccountKey.json',
+    path.resolve(__dirname, '../../../serviceAccountKey.json'),
+    path.resolve(process.cwd(), 'serviceAccountKey.json'),
+    path.resolve(process.cwd(), 'server', 'serviceAccountKey.json'),
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidatePaths) {
     try {
-      const resolvedPath = path.isAbsolute(env.FIREBASE_SERVICE_ACCOUNT_PATH)
-        ? env.FIREBASE_SERVICE_ACCOUNT_PATH
-        : path.resolve(process.cwd(), env.FIREBASE_SERVICE_ACCOUNT_PATH);
+      const resolvedPath = path.isAbsolute(candidate)
+        ? candidate
+        : path.resolve(process.cwd(), candidate);
 
       if (fs.existsSync(resolvedPath)) {
         const fileContent = fs.readFileSync(resolvedPath, 'utf8');
         const serviceAccount = JSON.parse(fileContent);
+        if (typeof serviceAccount.private_key === 'string') {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
         firebaseApp = initializeApp({
           credential: cert(serviceAccount),
         });
-        logger.info({ resolvedPath }, 'Firebase Admin initialized from service account file');
+        logger.info(
+          { resolvedPath, projectId: serviceAccount.project_id },
+          'Firebase Admin successfully initialized from service account'
+        );
         return firebaseApp;
-      } else {
-        logger.warn({ resolvedPath }, 'Firebase service account file not found at path');
       }
     } catch (err) {
-      logger.error(err, 'Failed to initialize Firebase Admin from service account file path');
+      logger.error({ err, candidate }, 'Failed to initialize Firebase Admin from service account file');
     }
   }
 
   // 3. Fallback for offline dev and test suites
+  // NOTE: Without a real service account, verifyIdToken() will fail. This
+  // fallback only prevents the app from crashing on startup so dev-login and
+  // test fixtures still work.
+  const projectId = process.env.FIREBASE_PROJECT_ID || 'fixify-2026';
   try {
-    firebaseApp = initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID || 'fixify-dev',
-    });
-    logger.info('Firebase Admin initialized with default project ID');
+    firebaseApp = initializeApp({ projectId });
+    logger.warn(
+      { projectId },
+      'Firebase Admin initialized WITHOUT service account credentials. ' +
+      'Google sign-in and email/password login will fail because ID token ' +
+      'verification requires a valid service account. Set FIREBASE_SERVICE_ACCOUNT_PATH ' +
+      'or FIREBASE_SERVICE_ACCOUNT_JSON in your .env file.'
+    );
     return firebaseApp;
   } catch (err) {
     logger.warn(err, 'Firebase Admin default initialization fallback');
@@ -123,6 +150,23 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFi
     }
     if (error.code === 'auth/id-token-expired') {
       throw new UnauthorizedError('Session token has expired. Please sign in again.');
+    }
+    // Handle missing credentials / misconfigured Firebase Admin
+    if (
+      error.code === 'auth/invalid-credential' ||
+      error.message?.includes('no matching kid') ||
+      error.message?.includes('credential') ||
+      error.message?.includes('INVALID_ARGUMENT')
+    ) {
+      logger.error(
+        { code: error.code },
+        'Firebase Admin cannot verify ID tokens. Ensure FIREBASE_SERVICE_ACCOUNT_PATH or ' +
+        'FIREBASE_SERVICE_ACCOUNT_JSON is correctly configured in your server .env file.'
+      );
+      throw new UnauthorizedError(
+        'Server authentication is misconfigured. Please contact the administrator.',
+        'AUTH_MISCONFIGURED'
+      );
     }
     throw new UnauthorizedError(error.message || 'Invalid or unverifiable authentication token.');
   }

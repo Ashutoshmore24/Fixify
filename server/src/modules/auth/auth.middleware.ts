@@ -76,15 +76,23 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     req.user = payload;
 
-    // Refresh sliding session cookie with refreshed token keeping original sessionStartedAt (unless endpoint issues its own cookie)
+    // Determine if this is an auth management route that should be exempt from
+    // profile/approval checks and should not issue a sliding refresh cookie
+    // (because those endpoints issue their own cookie).
     const url = req.originalUrl || req.baseUrl + req.path;
-    const isExemptAuthRoute =
+    const isAuthOwnCookieRoute =
       url.includes('/auth/register-profile') ||
-      url.includes('/auth/me') ||
-      url.includes('/auth/logout') ||
-      url.includes('/auth/session');
+      url.includes('/auth/session') ||
+      url.includes('/auth/google') ||
+      url.includes('/auth/logout');
 
-    if (!url.includes('/auth/register-profile') && !url.includes('/auth/logout')) {
+    const isExemptAuthRoute =
+      isAuthOwnCookieRoute ||
+      url.includes('/auth/me');
+
+    // Refresh sliding session cookie with a refreshed token keeping the original
+    // sessionStartedAt — but skip for routes that issue their own cookie.
+    if (!isAuthOwnCookieRoute) {
       const refreshedToken = AuthService.generateTokenFromPayload(payload);
       setAuthCookie(res, refreshedToken);
     }

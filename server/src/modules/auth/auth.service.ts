@@ -233,7 +233,8 @@ export class AuthService {
       const isFacultyDomain =
         email.includes('faculty') ||
         email.includes('prof') ||
-        email.endsWith('@faculty.pccoe.org');
+        email.endsWith('@faculty.pccoe.org') ||
+        email.endsWith('@pccoepune.org');
 
       user.approvalStatus = isFacultyDomain ? 'APPROVED' : 'PENDING_APPROVAL';
       user.profileComplete = true;

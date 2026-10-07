@@ -117,7 +117,7 @@ const UserSchema = new Schema<IUser>(
     },
     profileComplete: {
       type: Boolean,
-      default: true,
+      default: false,
       index: true,
     },
     approvalStatus: {
