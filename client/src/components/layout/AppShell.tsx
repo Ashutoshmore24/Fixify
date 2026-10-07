@@ -74,6 +74,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       title = 'Fixify | Work Orders & Dashboard';
     } else if (path === '/login') {
       title = 'Fixify | Institutional Login';
+    } else if (path === '/signup') {
+      title = 'Fixify | Create Account';
+    } else if (path === '/verify-email') {
+      title = 'Fixify | Verify Email';
+    } else if (path === '/complete-profile') {
+      title = 'Fixify | Complete Profile';
+    } else if (path === '/pending-approval') {
+      title = 'Fixify | Pending Approval';
     } else if (path === '/design') {
       title = 'Fixify | Design System Preview';
     }
@@ -189,8 +197,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const navItems = getNavItems(user?.role);
 
-  // If unauthenticated (e.g. login page), render clean page without sidebar
-  if (!user || location.pathname === '/login') {
+  // If unauthenticated or on auth pages, render clean page without sidebar
+  const authRoutes = ['/login', '/signup', '/verify-email', '/complete-profile', '/pending-approval'];
+  if (!user || authRoutes.includes(location.pathname)) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col">
         <a

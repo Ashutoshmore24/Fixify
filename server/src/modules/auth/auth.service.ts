@@ -1,31 +1,37 @@
 import jwt from 'jsonwebtoken';
-import { OAuth2Client } from 'google-auth-library';
 import { env } from '../../common/config/env';
-import { UnauthorizedError, ForbiddenError } from '../../common/errors/app-error';
-import { User, IUser, UserRole } from './auth.model';
-import { logger } from '../../common/utils/logger';
-
-let googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+import {
+  UnauthorizedError,
+  ForbiddenError,
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from '../../common/errors/app-error';
+import { User, IUser, UserRole, ApprovalStatus } from './auth.model';
+import { verifyFirebaseIdToken, setFirebaseTokenVerifier, TokenVerifier } from './firebase-admin';
+import { RegisterProfileInput } from './auth.schema';
 
 export interface JwtTokenPayload {
   id: string;
   email: string;
   role: UserRole;
   name: string;
-  sessionStartedAt: number;
+  profileComplete?: boolean;
+  approvalStatus?: ApprovalStatus;
+  sessionStartedAt?: number;
 }
 
 export class AuthService {
   /**
-   * Allows injecting a custom or mocked OAuth2Client for testing.
+   * Injects a custom verifier for unit testing and offline development.
    */
-  public static setOAuth2Client(client: OAuth2Client): void {
-    googleClient = client;
+  public static setTokenVerifier(verifier: TokenVerifier | null): void {
+    setFirebaseTokenVerifier(verifier);
   }
 
   /**
    * Validates whether an email domain is allowed by institutional policy (BR-10).
-   * Enforces exact match on the part after '@'. hd alone must NOT pass.
+   * Enforces exact match on the part after '@'. Subdomains or lookalike prefixes must NOT pass.
    */
   public static isDomainAllowed(email: string): boolean {
     const parts = email.split('@');
@@ -41,63 +47,64 @@ export class AuthService {
   }
 
   /**
-   * Verifies Google OAuth ID token, checks institutional domain, and provisions or updates user.
+   * Verifies Firebase ID token, checks institutional domain and email verification, and provisions or updates user.
    */
-  public static async loginWithGoogle(idToken: string): Promise<{ user: IUser; token: string }> {
-    let payload: {
-      email?: string;
-      name?: string;
-      picture?: string;
-      hd?: string;
-      email_verified?: boolean;
-    } | undefined;
+  public static async loginWithFirebase(
+    idToken: string
+  ): Promise<{ user: IUser; token: string; profileComplete: boolean; approvalStatus: ApprovalStatus }> {
+    const decoded = await verifyFirebaseIdToken(idToken);
 
-    try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: env.GOOGLE_CLIENT_ID,
-      });
-      payload = ticket.getPayload();
-    } catch (error) {
-      logger.warn(error, 'Google ID token verification failed');
-      throw new UnauthorizedError('Invalid or expired Google authentication token');
+    if (!decoded || !decoded.email) {
+      throw new UnauthorizedError('Firebase authentication payload did not contain email');
     }
 
-    if (!payload || !payload.email) {
-      throw new UnauthorizedError('Google authentication payload did not contain email');
-    }
+    const email = decoded.email.toLowerCase().trim();
 
-    if (payload.email_verified !== true) {
-      throw new UnauthorizedError('Google email is not verified', 'UNVERIFIED_EMAIL');
-    }
-
-    const email = payload.email.toLowerCase().trim();
-
-    // Enforce BR-10 institutional email domain constraint: exact match on email domain
-    if (!this.isDomainAllowed(email)) {
+    // 1. Enforce BR-10 verified email requirement: HTTP 403 with friendly message
+    if (decoded.email_verified !== true) {
       throw new ForbiddenError(
-        `Access denied: Institutional account required. Domain "${email.split('@')[1]}" is not authorized.`,
+        'Please verify your institutional email address before signing in.',
+        'UNVERIFIED_EMAIL'
+      );
+    }
+
+    // 2. Enforce BR-10 institutional email domain constraint: exact match on email domain
+    if (!this.isDomainAllowed(email)) {
+      const domain = email.split('@')[1] || '';
+      throw new ForbiddenError(
+        `Access denied: Institutional account required. Domain "${domain}" is not authorized.`,
         'UNAUTHORIZED_DOMAIN'
       );
     }
 
-    // Find or provision user
-    let user = await User.findOne({ email });
+    // 3. Find or provision user
+    let user = await User.findOne({
+      $or: [{ firebaseUid: decoded.uid }, { email }],
+    });
 
     if (!user) {
       // First login role allocation
       let initialRole: UserRole = 'STUDENT';
+      let approvalStatus: ApprovalStatus = 'APPROVED';
+      let profileComplete = false;
+
       if (email === env.ADMIN_EMAIL.toLowerCase().trim()) {
         initialRole = 'ADMIN';
+        approvalStatus = 'APPROVED';
+        profileComplete = true; // Admin bootstrap is auto-complete
       } else if (email.includes('faculty') || email.includes('prof')) {
         initialRole = 'FACULTY';
+        approvalStatus = 'APPROVED';
       }
 
       user = new User({
-        name: payload.name || email.split('@')[0],
+        firebaseUid: decoded.uid,
+        name: decoded.name || email.split('@')[0],
         email,
-        picture: payload.picture || '',
+        picture: decoded.picture || '',
         role: initialRole,
+        profileComplete,
+        approvalStatus,
         isActive: true,
         lastLoginAt: new Date(),
       });
@@ -110,17 +117,129 @@ export class AuthService {
         throw new ForbiddenError('Account not found or deleted.');
       }
 
+      // Link firebaseUid if it was created via seed or dev-login
+      if (!user.firebaseUid) {
+        user.firebaseUid = decoded.uid;
+      }
+
       // Upgrade to admin if email matches ADMIN_EMAIL
       if (email === env.ADMIN_EMAIL.toLowerCase().trim() && user.role !== 'ADMIN') {
         user.role = 'ADMIN';
+        user.approvalStatus = 'APPROVED';
+        user.profileComplete = true;
       }
 
-      user.name = payload.name || user.name;
-      user.picture = payload.picture || user.picture;
+      if (decoded.name && !user.name) {
+        user.name = decoded.name;
+      }
+      if (decoded.picture && !user.picture) {
+        user.picture = decoded.picture;
+      }
+
       user.lastLoginAt = new Date();
       await user.save();
     }
 
+    const token = this.generateToken(user);
+    return {
+      user,
+      token,
+      profileComplete: Boolean(user.profileComplete),
+      approvalStatus: user.approvalStatus,
+    };
+  }
+
+  /**
+   * Backwards compatible alias for loginWithFirebase.
+   */
+  public static async loginWithGoogle(
+    idToken: string
+  ): Promise<{ user: IUser; token: string; profileComplete: boolean; approvalStatus: ApprovalStatus }> {
+    return this.loginWithFirebase(idToken);
+  }
+
+  /**
+   * Completes registration profile for newly created or Google accounts.
+   */
+  public static async registerProfile(
+    userId: string,
+    data: RegisterProfileInput
+  ): Promise<{ user: IUser; token: string }> {
+    const user = await User.findById(userId);
+    if (!user || user.deletedAt) {
+      throw new NotFoundError('User account not found');
+    }
+
+    if (!user.isActive) {
+      throw new ForbiddenError('Account is deactivated');
+    }
+
+    // Role escalation prevention: Only STUDENT or FACULTY allowed through public registration
+    if (data.role !== 'STUDENT' && data.role !== 'FACULTY') {
+      throw new ForbiddenError(
+        'Public registration permits only STUDENT or FACULTY accounts.',
+        'ROLE_ESCALATION_DENIED'
+      );
+    }
+
+    const trimmedFirstName = data.firstName.trim();
+    const trimmedLastName = data.lastName.trim();
+    const fullName = `${trimmedFirstName} ${trimmedLastName}`.trim();
+
+    user.firstName = trimmedFirstName;
+    user.lastName = trimmedLastName;
+    user.name = fullName;
+
+    if (data.role === 'STUDENT') {
+      const prn = data.prn?.trim();
+      if (!prn) {
+        throw new BadRequestError('PRN is required for student registration', 'MISSING_PRN');
+      }
+
+      const prnRegex = new RegExp(env.PRN_REGEX);
+      if (!prnRegex.test(prn)) {
+        throw new BadRequestError(
+          `Invalid PRN format. PRN must match institutional pattern: ${env.PRN_REGEX}`,
+          'INVALID_PRN'
+        );
+      }
+
+      // Check duplicate PRN
+      const duplicatePrnUser = await User.findOne({
+        prn,
+        _id: { $ne: user._id },
+      });
+      if (duplicatePrnUser) {
+        throw new ConflictError(
+          'A student with this PRN is already registered in the system.',
+          'DUPLICATE_PRN'
+        );
+      }
+
+      user.role = 'STUDENT';
+      user.course = data.course?.trim() || '';
+      user.year = data.year?.trim() || '';
+      user.division = data.division?.trim() || '';
+      user.prn = prn;
+      user.approvalStatus = 'APPROVED';
+      user.profileComplete = true;
+    } else if (data.role === 'FACULTY') {
+      user.role = 'FACULTY';
+      user.employeeId = data.employeeId?.trim() || '';
+
+      // Check faculty domain rule from ASSUMPTIONS.md:
+      // Auto-approved only if email matches faculty pattern, otherwise PENDING_APPROVAL
+      const email = user.email.toLowerCase();
+      const isFacultyDomain =
+        email.includes('faculty') ||
+        email.includes('prof') ||
+        email.endsWith('@faculty.pccoe.org');
+
+      user.approvalStatus = isFacultyDomain ? 'APPROVED' : 'PENDING_APPROVAL';
+      user.profileComplete = true;
+    }
+
+    await user.save();
     const token = this.generateToken(user);
     return { user, token };
   }
@@ -134,6 +253,8 @@ export class AuthService {
       email: user.email,
       role: user.role,
       name: user.name,
+      profileComplete: user.profileComplete,
+      approvalStatus: user.approvalStatus,
       sessionStartedAt: sessionStartedAt || Date.now(),
     };
 
@@ -151,6 +272,8 @@ export class AuthService {
       email: payload.email,
       role: payload.role,
       name: payload.name,
+      profileComplete: payload.profileComplete,
+      approvalStatus: payload.approvalStatus,
       sessionStartedAt: payload.sessionStartedAt || Date.now(),
     };
     return jwt.sign(cleanPayload, env.JWT_SECRET, {
@@ -170,9 +293,13 @@ export class AuthService {
   }
 
   /**
-   * Development-only login bypass for test fixtures.
+   * Development-only login bypass for test fixtures and seed personas.
    */
-  public static async devLogin(email: string, name?: string, role?: UserRole): Promise<{ user: IUser; token: string }> {
+  public static async devLogin(
+    email: string,
+    name?: string,
+    role?: UserRole
+  ): Promise<{ user: IUser; token: string }> {
     if (env.NODE_ENV === 'production') {
       throw new ForbiddenError('Development login is disabled in production');
     }
@@ -194,6 +321,8 @@ export class AuthService {
         name: name || normalizedEmail.split('@')[0],
         email: normalizedEmail,
         role: initialRole,
+        profileComplete: true,
+        approvalStatus: 'APPROVED',
         isActive: true,
         lastLoginAt: new Date(),
       });
@@ -202,6 +331,8 @@ export class AuthService {
       if (role && user.role !== role) {
         user.role = role;
       }
+      user.profileComplete = true;
+      user.approvalStatus = 'APPROVED';
       user.lastLoginAt = new Date();
       await user.save();
     }

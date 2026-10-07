@@ -8,14 +8,26 @@ export type UserRole =
   | 'HOD'
   | 'ADMIN';
 
+export type ApprovalStatus = 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
+
 export interface IUser extends Document {
   _id: Types.ObjectId;
+  firebaseUid?: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   email: string;
   picture?: string;
   role: UserRole;
   department?: Types.ObjectId | null;
   assignedLabs: Types.ObjectId[];
+  course?: string;
+  year?: string;
+  division?: string;
+  prn?: string;
+  employeeId?: string;
+  profileComplete: boolean;
+  approvalStatus: ApprovalStatus;
   isActive: boolean;
   lastLoginAt: Date;
   deletedAt?: Date | null;
@@ -25,6 +37,22 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>(
   {
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    firstName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    lastName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     name: {
       type: String,
       required: true,
@@ -60,6 +88,44 @@ const UserSchema = new Schema<IUser>(
         ref: 'Laboratory',
       },
     ],
+    course: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    year: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    division: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    prn: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+      trim: true,
+    },
+    employeeId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    profileComplete: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['APPROVED', 'PENDING_APPROVAL', 'REJECTED'],
+      default: 'APPROVED',
+      index: true,
+    },
     isActive: {
       type: Boolean,
       default: true,

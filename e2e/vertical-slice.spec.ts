@@ -76,7 +76,7 @@ test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant 
     // Step C: Assistant adds work note
     await page.click('button:has-text("Add Note")');
     await page.fill('textarea[placeholder*="work note"]', 'Replaced video display cable and cleaned power switch');
-    await page.click('button:has-text("Add Note"):not([disabled])');
+    await page.click('div[role="dialog"] button:has-text("Add Note"):not([disabled])');
 
     // Step D: Assistant resolves & closes with BR-8 closure verification
     await page.click('button:has-text("Resolve & Close (BR-8)")');
@@ -106,6 +106,6 @@ test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant 
     // Open ticket timeline
     await page.click(`text=${ticketId}`);
     await expect(page.locator('text=Resolved & Closed (BR-8 Verified)')).toBeVisible();
-    await expect(page.locator('text=Replaced monitor cable')).toBeVisible();
+    await expect(page.locator('text=Replaced monitor cable').first()).toBeVisible();
   });
 });

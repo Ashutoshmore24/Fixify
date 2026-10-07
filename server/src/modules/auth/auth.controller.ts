@@ -3,24 +3,28 @@ import { AuthService } from './auth.service';
 import { setAuthCookie, clearAuthCookie } from './auth.middleware';
 import { sendSuccess } from '../../common/utils/api-response';
 import { User } from './auth.model';
-import { NotFoundError } from '../../common/errors/app-error';
+import { NotFoundError, UnauthorizedError } from '../../common/errors/app-error';
 import { AuditService } from '../audit/audit.service';
 
 export class AuthController {
-  public static async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * Session authentication endpoint: accepts Firebase ID token and issues JWT session cookie.
+   */
+  public static async sessionLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { idToken } = req.body;
-      const { user, token } = await AuthService.loginWithGoogle(idToken);
+      const { user, token, profileComplete, approvalStatus } =
+        await AuthService.loginWithFirebase(idToken);
 
       setAuthCookie(res, token);
 
       // Record audit log entry (BR-9)
       await AuditService.logEvent({
         actor: user._id,
-        action: 'USER_LOGIN_GOOGLE',
+        action: 'USER_LOGIN_FIREBASE',
         entityType: 'USER',
         entityId: user._id,
-        after: { email: user.email, role: user.role },
+        after: { email: user.email, role: user.role, profileComplete, approvalStatus },
         ip: req.ip,
       });
 
@@ -33,8 +37,82 @@ export class AuthController {
           role: user.role,
           department: user.department,
           assignedLabs: user.assignedLabs,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          course: user.course,
+          year: user.year,
+          division: user.division,
+          prn: user.prn,
+          employeeId: user.employeeId,
+          profileComplete: user.profileComplete,
+          approvalStatus: user.approvalStatus,
         },
         token,
+        profileComplete,
+        approvalStatus,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Backwards compatible endpoint for google login.
+   */
+  public static async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    return AuthController.sessionLogin(req, res, next);
+  }
+
+  /**
+   * Completes registration profile after Firebase account creation and email verification.
+   */
+  public static async registerProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required to register profile');
+      }
+
+      const { user, token } = await AuthService.registerProfile(req.user.id, req.body);
+
+      setAuthCookie(res, token);
+
+      await AuditService.logEvent({
+        actor: user._id,
+        action: 'USER_REGISTER_PROFILE',
+        entityType: 'USER',
+        entityId: user._id,
+        after: {
+          email: user.email,
+          role: user.role,
+          profileComplete: user.profileComplete,
+          approvalStatus: user.approvalStatus,
+          prn: user.prn,
+        },
+        ip: req.ip,
+      });
+
+      sendSuccess(res, {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          picture: user.picture,
+          role: user.role,
+          department: user.department,
+          assignedLabs: user.assignedLabs,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          course: user.course,
+          year: user.year,
+          division: user.division,
+          prn: user.prn,
+          employeeId: user.employeeId,
+          profileComplete: user.profileComplete,
+          approvalStatus: user.approvalStatus,
+        },
+        token,
+        profileComplete: user.profileComplete,
+        approvalStatus: user.approvalStatus,
       });
     } catch (error) {
       next(error);
@@ -66,8 +144,19 @@ export class AuthController {
           role: user.role,
           department: user.department,
           assignedLabs: user.assignedLabs,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          course: user.course,
+          year: user.year,
+          division: user.division,
+          prn: user.prn,
+          employeeId: user.employeeId,
+          profileComplete: user.profileComplete,
+          approvalStatus: user.approvalStatus,
         },
         token,
+        profileComplete: true,
+        approvalStatus: 'APPROVED',
       });
     } catch (error) {
       next(error);

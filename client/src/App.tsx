@@ -10,6 +10,10 @@ import { SkeletonCard, SkeletonText } from './components/ui/Skeleton';
 
 // Route-level code splitting
 const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const CompleteProfile = lazy(() => import('./pages/CompleteProfile'));
+const PendingApproval = lazy(() => import('./pages/PendingApproval'));
 const ReportComplaint = lazy(() => import('./pages/ReportComplaint'));
 const MyComplaints = lazy(() => import('./pages/MyComplaints'));
 const AssistantDashboard = lazy(() => import('./pages/AssistantDashboard'));
@@ -34,7 +38,7 @@ const PageLoaderFallback: React.FC = () => (
 
 export const App: React.FC = () => {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <SocketProvider>
           <ToastProvider>
@@ -45,6 +49,10 @@ export const App: React.FC = () => {
                 <Routes>
                   {/* Public Authentication */}
                   <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
+                  <Route path="/complete-profile" element={<CompleteProfile />} />
+                  <Route path="/pending-approval" element={<PendingApproval />} />
 
                   {/* Dev-only Design System Preview (excluded in production) */}
                   {import.meta.env.DEV && DesignSystemPreview && (

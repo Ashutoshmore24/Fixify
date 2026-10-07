@@ -27,7 +27,7 @@ export class ComputerService {
     }).select('_id ticketId status computer').lean();
 
     const ticketMap = new Map<string, { _id: string; ticketId: string; status: string }>();
-    for (const t of activeTickets as any[]) {
+    for (const t of activeTickets as unknown as Array<{ _id: mongoose.Types.ObjectId; ticketId: string; status: string; computer: mongoose.Types.ObjectId }>) {
       ticketMap.set(t.computer.toString(), {
         _id: t._id.toString(),
         ticketId: t.ticketId,
@@ -35,7 +35,7 @@ export class ComputerService {
       });
     }
 
-    return computers.map((c: any) => ({
+    return computers.map((c) => ({
       _id: c._id.toString(),
       assetTag: c.assetTag,
       lab: c.lab.toString(),

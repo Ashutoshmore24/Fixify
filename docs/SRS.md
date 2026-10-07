@@ -487,9 +487,9 @@ Fixify is a cloud-based web application designed to operate on modern computing 
 
 ## Authentication Environment
 
-- Google OAuth 2.0
+- Firebase Authentication (Email/Password & Google Sign-In)
 
-- Institutional Email Authentication
+- Institutional Email Verification & Domain Restriction
 
 ## Network Requirements
 
@@ -607,7 +607,7 @@ The successful operation of Fixify depends on the following assumptions.
 
 ## Dependencies
 
-- Google OAuth Authentication.
+- Firebase Authentication (Web SDK & Firebase Admin SDK).
 
 - Institutional email services.
 
@@ -835,9 +835,9 @@ Fixify shall communicate with various internal and external software components 
 
 ## Authentication Service
 
-The system shall integrate with Google OAuth 2.0 using institutional email accounts for secure user authentication.
+The system shall integrate with Firebase Authentication (supporting Email/Password and Google Sign-In) using institutional email accounts for secure user authentication. The backend shall verify Firebase ID tokens using the Firebase Admin SDK (`verifyIdToken` with `checkRevoked: true`).
 
-Only authorized institutional users shall be allowed to access protected system resources.
+Only authorized institutional users with verified email addresses shall be allowed to access protected system resources.
 
 ## Database Management System
 
@@ -1214,17 +1214,21 @@ Priority: High
 
 ## Functional Requirements:
 
-- Institutional Login
+- Firebase Authentication: Support both Email + Password and Google Sign-In via Firebase Web SDK on the client and Firebase Admin SDK on the server.
 
-- Google OAuth
+- Password Security: Passwords are encrypted, hashed, and stored exclusively by Firebase Authentication. Institutional application servers shall never handle, store, or log plaintext or hashed passwords.
 
-- Role Verification
+- Institutional Email Verification: The system shall enforce mandatory email verification (`email_verified: true`) prior to unlocking application functionality.
 
-- Session Timeout
+- Institutional Domain Restriction (BR-10): The server shall validate the user's verified email domain against the institutional whitelist (`ALLOWED_EMAIL_DOMAINS`, exact match after '@'). Public email domains are rejected in production.
 
-- Access Restriction
+- Profile Completion: New users (via Email/Password signup or Google Sign-In) must complete their academic profile (First Name, Last Name, Course, Year, Division, and unique PRN for Students; Department and Employee ID for Faculty) via `POST /api/v1/auth/register-profile` before accessing application features.
 
-- Activity Logging
+- Role Assignment & Governance: Public self-registration only permits creation of STUDENT or FACULTY accounts. Client attempts to escalate to other roles are strictly rejected. FACULTY accounts matching the institutional faculty email pattern are auto-approved; otherwise, they enter `PENDING_APPROVAL` status awaiting administrator approval. Elevated roles (`LAB_ASSISTANT`, `DEPT_AUTHORITY`, `HOD`, `ADMIN`) are assigned exclusively by an Administrator.
+
+- Session Cookie Management: Upon successful Firebase ID token verification (`verifyIdToken` with `checkRevoked: true`), the server issues a secure, httpOnly JWT session cookie with a 15-minute sliding inactivity expiration and an 8-hour absolute maximum lifetime.
+
+- Activity Logging & Audit Trail: All successful logins, registration completions, and authentication rejections shall be recorded in the system audit log.
 
 ## 4.8 Analytics & Reporting Dashboard
 
@@ -1427,9 +1431,17 @@ Security is critical because the system manages institutional users, IT assets, 
 
 - Only users with valid institutional email accounts shall access the system.
 
-- Authentication shall be performed using Google OAuth 2.0.
+- Authentication shall be performed using Firebase Authentication (supporting Email + Password and Google Sign-In).
 
-- Unauthorized email domains shall be denied access.
+- The backend application server shall verify Firebase ID tokens using `firebase-admin` (`verifyIdToken` with `checkRevoked: true`).
+
+- Firebase Authentication stores all credentials; passwords shall never be stored, logged, or processed by institutional application servers.
+
+- Mandatory email verification (`email_verified: true`) is enforced before granting access to protected application resources.
+
+- Unauthorized email domains shall be denied access (HTTP 403 Forbidden with institutional guidance message).
+
+- Role escalation prevention: Public registration payloads attempting to claim privileged roles (`LAB_ASSISTANT`, `DEPT_AUTHORITY`, `HOD`, `ADMIN`) are strictly rejected.
 
 ## Role-Based Access Control (RBAC)
 
@@ -1627,16 +1639,16 @@ The audit trail shall not be editable by ordinary users.
 
 ## BR-10 Institutional Access
 
-Only users authenticated through valid institutional credentials shall be permitted to access the system.
+Only users authenticated through valid institutional credentials verified via Firebase Authentication shall be permitted to access the system. The server enforces strict domain whitelist checking on the verified email address against `ALLOWED_EMAIL_DOMAINS` (exact match on domain portion after '@'). Unverified emails (`email_verified: false`) are denied access with HTTP 403. Public email domains (such as gmail.com, yahoo.com) are strictly prohibited in production environments and permitted only in development mode.
 
 
 - 6. Other Requirements
 
 6.1 Database Requirements The Fixify platform requires a robust NoSQL database environment (specifically MongoDB) to handle the dynamic, document-based schemas associated with varying hardware issues and user roles. The database must support rapid read/write operations to ensure that concurrent ticket submissions during peak laboratory hours do not result in data locking or loss. Furthermore, the database must maintain relational integrity between User, Laboratory, Computer, and Ticket collections.
 
-6.2 Legal and Compliance Requirements As a system deployed within an educational institution, Fixify must strictly adhere to institutional data privacy policies. Student and faculty email addresses, identifying information, and platform usage data extracted via the SSO integration must remain localized to the college's secure environment. The platform shall display appropriate disclaimers and privacy notices on the login screen, confirming that usage data is collected solely for hardware maintenance purposes.
+6.2 Legal and Compliance Requirements As a system deployed within an educational institution, Fixify must strictly adhere to institutional data privacy policies. Student and faculty email addresses, identifying information, and platform usage data extracted via the Firebase Authentication integration must remain localized to the college's secure environment. Passwords are encrypted and managed externally by Firebase Authentication; institutional servers never store, log, or process user passwords. The platform shall display appropriate disclaimers and privacy notices on the login and signup screens, confirming that usage data is collected solely for hardware maintenance purposes, defect attribution, and laboratory security.
 
-6.3 Reuse Objectives To maximize the software engineering value of this project, specific backend modules shall be developed as independent, decoupled microservices. The QR Code URL Generation Module and the Google Workspace SSO Authentication Middleware should be engineered so they can be easily reused by other college departments for future campus-wide applications (e.g., library management or cafeteria ordering).
+6.3 Reuse Objectives To maximize the software engineering value of this project, specific backend modules shall be developed as independent, decoupled microservices. The QR Code URL Generation Module and the Firebase Authentication Session Middleware should be engineered so they can be easily reused by other college departments for future campus-wide applications (e.g., library management or cafeteria ordering).
 
 ## Appendix A: Glossary
 
@@ -1646,7 +1658,7 @@ Only users authenticated through valid institutional credentials shall be permit
 
 - HOD (Head of Department): The administrative leader of a specific engineering branch, possessing elevated privileges to view lab health analytics.
 
-- JWT (JSON Web Token): A secure method for transmitting authenticated user identity information between the client and server after SSO login.
+- JWT (JSON Web Token): A secure method for transmitting authenticated user identity information between the client and server after session creation.
 
 - MERN Stack: The foundational technology architecture used for this project, comprising MongoDB, Express.js, React, and Node.js.
 
@@ -1656,7 +1668,7 @@ Only users authenticated through valid institutional credentials shall be permit
 
 - SRS (Software Requirements Specification): A document that completely describes what the software will do and how it will be expected to perform.
 
-- SSO (Single Sign-On): An authentication process allowing users to access the platform using their existing institutional Google credentials.
+- Firebase Auth / SSO: An authentication architecture allowing users to access the platform using institutional Email/Password credentials or institutional Google identity, verified via Firebase.
 
 ## Appendix B: Analysis Models
 

@@ -50,7 +50,7 @@ export const extractToken = (req: Request): string | null => {
 };
 
 /**
- * Validates JWT, refreshes sliding cookie session, and injects req.user.
+ * Validates JWT, refreshes sliding cookie session, enforces profile completion, and injects req.user.
  */
 export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
   const token = extractToken(req);
@@ -76,9 +76,40 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     req.user = payload;
 
-    // Refresh sliding session cookie with refreshed token keeping original sessionStartedAt
-    const refreshedToken = AuthService.generateTokenFromPayload(payload);
-    setAuthCookie(res, refreshedToken);
+    // Refresh sliding session cookie with refreshed token keeping original sessionStartedAt (unless endpoint issues its own cookie)
+    const url = req.originalUrl || req.baseUrl + req.path;
+    const isExemptAuthRoute =
+      url.includes('/auth/register-profile') ||
+      url.includes('/auth/me') ||
+      url.includes('/auth/logout') ||
+      url.includes('/auth/session');
+
+    if (!url.includes('/auth/register-profile') && !url.includes('/auth/logout')) {
+      const refreshedToken = AuthService.generateTokenFromPayload(payload);
+      setAuthCookie(res, refreshedToken);
+    }
+
+    // Block general application access until profile is complete and account is approved
+
+    if (!isExemptAuthRoute) {
+      if (payload.profileComplete === false) {
+        return next(
+          new ForbiddenError(
+            'Please complete your registration profile before accessing the application.',
+            'PROFILE_INCOMPLETE'
+          )
+        );
+      }
+
+      if (payload.approvalStatus === 'PENDING_APPROVAL') {
+        return next(
+          new ForbiddenError(
+            'Your account is currently pending administrator approval.',
+            'PENDING_APPROVAL'
+          )
+        );
+      }
+    }
 
     next();
   } catch (error) {

@@ -48,3 +48,8 @@ playwright/.cache/
 # Uploads directory
 uploads/
 scratch/
+
+# Firebase Service Account Credentials
+*serviceAccountKey*.json
+*firebase-service-account*.json
+*firebase-admin*.json

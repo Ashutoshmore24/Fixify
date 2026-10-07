@@ -19,17 +19,28 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-slate-500 font-medium">Verifying institutional session...</p>
         </div>
       </div>
     );
   }
 
+  const fullPath = location.pathname + location.search;
+
   if (!user) {
     // Preserve current path and query (e.g. /report?lab=LAB-101) through login redirect
-    const fullPath = location.pathname + location.search;
     return <Navigate to={`/login?redirect=${encodeURIComponent(fullPath)}`} replace />;
+  }
+
+  // Block access until profile completion is satisfied
+  if (user.profileComplete === false) {
+    return <Navigate to={`/complete-profile?redirect=${encodeURIComponent(fullPath)}`} replace />;
+  }
+
+  // Block access while faculty account is pending administrator approval
+  if (user.approvalStatus === 'PENDING_APPROVAL') {
+    return <Navigate to={`/pending-approval?redirect=${encodeURIComponent(fullPath)}`} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
@@ -56,3 +67,5 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   return <>{children}</>;
 };
+
+export default ProtectedRoute;

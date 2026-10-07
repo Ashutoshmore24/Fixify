@@ -21,20 +21,26 @@ import { NotFoundError } from './common/errors/app-error';
 export const createApp = (): Application => {
   const app = express();
 
-  // 1. Security Headers
+  // 1. Security Headers - Allow popup communication for Google/Firebase Auth
   app.use(
     helmet({
       contentSecurityPolicy: env.NODE_ENV === 'production',
       crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     })
   );
 
-  // 2. Cross-Origin Resource Sharing (CORS) - Exact origin allowlist
+  // 2. Cross-Origin Resource Sharing (CORS) - Exact origin allowlist with dev localhost support
   const allowedOrigin = new URL(env.CLIENT_URL).origin;
   app.use(
     cors({
       origin: (requestOrigin, callback) => {
         if (!requestOrigin || requestOrigin === allowedOrigin) {
+          callback(null, true);
+        } else if (
+          env.NODE_ENV !== 'production' &&
+          /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(requestOrigin)
+        ) {
           callback(null, true);
         } else {
           callback(new Error(`CORS blocked: Origin "${requestOrigin}" is not allowed`));
