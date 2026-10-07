@@ -9,8 +9,15 @@ export const csrfProtection = (req: Request, _res: Response, next: NextFunction)
     return next();
   }
 
-  // Exempt routes if specified (e.g., test or webhook)
-  if (req.path.startsWith('/api/v1/auth/google/callback')) {
+  // Exempt auth session endpoints — they accept a Firebase ID token in the body
+  // (not cookie-based), so there is no CSRF risk. The dev-login route is also
+  // exempted since it only runs in non-production environments.
+  if (
+    req.path.startsWith('/api/v1/auth/session') ||
+    req.path.startsWith('/api/v1/auth/google') ||
+    req.path.startsWith('/api/v1/auth/dev-login') ||
+    req.path.startsWith('/api/v1/auth/impersonate')
+  ) {
     return next();
   }
 

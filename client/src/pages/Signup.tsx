@@ -543,7 +543,7 @@ export const Signup: React.FC = () => {
               type="email"
               name="email"
               autoComplete="email"
-              placeholder="rahul.deshmukh@pccoe.org"
+              placeholder="name@pccoepune.org or name@gmail.com"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -555,7 +555,7 @@ export const Signup: React.FC = () => {
               required
             />
             <p className="text-[11px] text-slate-400">
-              Only authorized institutional emails ending in <span className="text-blue-400 font-mono">@pccoe.org</span> are permitted.
+              Only authorized emails ending in <span className="text-blue-400 font-mono">@pccoepune.org</span> or <span className="text-blue-400 font-mono">@gmail.com</span> are permitted.
             </p>
           </div>
 
