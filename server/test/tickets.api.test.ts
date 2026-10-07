@@ -32,6 +32,8 @@ describe('Phase 2 Vertical Slice End-to-End API Integration', () => {
       email: 'rahul@pccoe.org',
       role: 'STUDENT',
       department: compDept._id,
+      profileComplete: true,
+      approvalStatus: 'APPROVED',
     });
 
     assistant = await User.create({
@@ -40,12 +42,16 @@ describe('Phase 2 Vertical Slice End-to-End API Integration', () => {
       role: 'LAB_ASSISTANT',
       department: compDept._id,
       assignedLabs: [],
+      profileComplete: true,
+      approvalStatus: 'APPROVED',
     });
 
     admin = await User.create({
       name: 'System Admin',
       email: 'admin@pccoe.org',
       role: 'ADMIN',
+      profileComplete: true,
+      approvalStatus: 'APPROVED',
     });
 
     lab101 = await Laboratory.create({

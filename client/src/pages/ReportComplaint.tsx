@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/axios';
 import { Computer, Laboratory, TicketCategory } from '../types';
 import { ElectricalSafetyModal } from '../components/ElectricalSafetyModal';
+import { ImageUploader } from '../features/complaints/ImageUploader';
 
 const SAFETY_KEYWORDS = [
   'spark',
@@ -152,14 +153,6 @@ export const ReportComplaint: React.FC = () => {
       );
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleSimulateImageUpload = () => {
-    // Allows adding a simulated photo capture
-    const sampleImage = `https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&w=600&q=80`;
-    if (images.length < 3) {
-      setImages([...images, sampleImage]);
     }
   };
 
@@ -408,7 +401,7 @@ export const ReportComplaint: React.FC = () => {
           />
         </section>
 
-        {/* ACTION 4: OPTIONAL IMAGE UPLOAD */}
+        {/* ACTION 4: OPTIONAL IMAGE UPLOAD (REQ-1.6 Cloudinary Integration) */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
@@ -420,31 +413,12 @@ export const ReportComplaint: React.FC = () => {
             <span className="text-[10px] text-slate-400">{images.length}/3 Photos</span>
           </div>
 
-          <div className="flex gap-2 items-center">
-            {images.map((img, idx) => (
-              <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                <img src={img} alt="Fault snapshot" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px]"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-
-            {images.length < 3 && (
-              <button
-                type="button"
-                onClick={handleSimulateImageUpload}
-                className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 transition text-[10px] gap-1"
-              >
-                <span>📷</span>
-                <span>Attach</span>
-              </button>
-            )}
-          </div>
+          <ImageUploader
+            value={images}
+            onChange={(newImages) => setImages(newImages)}
+            maxImages={3}
+            disabled={isSubmitting}
+          />
         </section>
 
         {/* SUBMIT BUTTON */}

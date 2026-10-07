@@ -39,6 +39,8 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
     };
   }, [ticket, socket, onTicketUpdated]);
 
+  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+
   if (!ticket) return null;
 
   const currentStepIdx = STATUS_STEPS.indexOf(ticket.status);
@@ -140,6 +142,38 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
             </p>
           </div>
 
+          {/* Supporting Evidence Images from Cloudinary */}
+          {ticket.images && ticket.images.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Attached Photos ({ticket.images.length})
+                </h4>
+                <span className="text-[10px] text-blue-500 font-medium">Click to inspect</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {ticket.images.map((imgUrl, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedImage(imgUrl)}
+                    className="relative aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 cursor-pointer group hover:shadow-md transition"
+                  >
+                    <img
+                      src={imgUrl}
+                      alt={`Complaint snapshot ${idx + 1}`}
+                      className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-slate-950/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="text-[10px] text-white font-semibold bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-xs">
+                        View
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* BR-8 Resolution details if closed */}
           {ticket.status === 'CLOSED' && (
             <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-2xl text-xs space-y-1">
@@ -196,6 +230,34 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {selectedImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div
+            className="relative max-w-2xl max-h-[85vh] rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={selectedImage}
+              alt="Enlarged complaint snapshot"
+              className="w-full h-full object-contain max-h-[80vh]"
+            />
+            <button
+              type="button"
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center transition text-sm font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

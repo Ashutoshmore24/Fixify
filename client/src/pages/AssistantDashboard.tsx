@@ -276,6 +276,27 @@ export const AssistantDashboard: React.FC = () => {
                   {t.description}
                 </p>
 
+                {/* Evidence photos from Cloudinary */}
+                {t.images && t.images.length > 0 && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                      📷 Attached Photos ({t.images.length}):
+                    </span>
+                    <div className="flex gap-1.5">
+                      {t.images.map((img, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setSelectedTimelineTicket(t)}
+                          className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-blue-500/50 transition shadow-xs"
+                          title="Click to view ticket and enlarge photo"
+                        >
+                          <img src={img} alt={`Fault proof ${i + 1}`} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Technician Action Buttons */}
                 <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
                   {t.status === 'ASSIGNED' && (
