@@ -160,6 +160,11 @@ export const MyComplaints: React.FC = () => {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg}`}>
                       {badge.label}
                     </span>
+                    {t.images && t.images.length > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded-md font-medium border border-blue-200/50 dark:border-blue-800/40">
+                        📷 {t.images.length}
+                      </span>
+                    )}
                   </div>
                   <span className="text-[11px] text-slate-400">
                     {new Date(t.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}

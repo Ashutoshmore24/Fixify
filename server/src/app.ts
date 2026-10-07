@@ -15,8 +15,10 @@ import { computerRoutes } from './modules/computers/computer.routes';
 import { userRoutes } from './modules/users/user.routes';
 import { ticketRoutes } from './modules/tickets/ticket.routes';
 import { notificationRoutes } from './modules/notifications/notification.routes';
+import { uploadRoutes } from './modules/upload/upload.routes';
 import { sendSuccess } from './common/utils/api-response';
 import { NotFoundError } from './common/errors/app-error';
+import path from 'path';
 
 export const createApp = (): Application => {
   const app = express();
@@ -92,6 +94,10 @@ export const createApp = (): Application => {
   app.use('/api/v1/users', userRoutes);
   app.use('/api/v1/tickets', ticketRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
+  app.use('/api/v1/upload', uploadRoutes);
+
+  // Static uploads directory (local fallback)
+  app.use('/uploads', express.static(path.resolve(__dirname, '../public/uploads')));
 
   // 9. 404 Route Catch-all
   app.use((_req: Request, _res: Response, next) => {

@@ -11,6 +11,14 @@ process.env.ADMIN_EMAIL = 'admin@pccoe.org';
 process.env.CLIENT_URL = 'http://localhost:5173';
 process.env.SERVER_URL = 'http://localhost:5000';
 
+// Use local mongod binary if available to avoid 500MB network download
+if (process.platform === 'win32') {
+  const localMongo = 'C:\\Program Files\\MongoDB\\Server\\8.2\\bin\\mongod.exe';
+  if (require('fs').existsSync(localMongo)) {
+    process.env.MONGOMS_SYSTEM_BINARY = localMongo;
+  }
+}
+
 beforeAll(async () => {
   await startTestDb();
 }, 60000);
