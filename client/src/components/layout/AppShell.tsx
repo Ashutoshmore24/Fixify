@@ -9,6 +9,7 @@ import { FixifyLogo } from './FixifyLogo';
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   Badge,
   Button,
   Sheet,
@@ -29,6 +30,7 @@ import {
   ChevronRight,
   LogOut,
   UserCheck,
+  User as UserIcon,
   Check,
   Sun,
   Moon,
@@ -79,6 +81,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       title = 'Fixify | Verify Email';
     } else if (path === '/complete-profile') {
       title = 'Fixify | Complete Profile';
+    } else if (path === '/profile') {
+      title = 'Fixify | Institutional Profile';
     } else if (path === '/pending-approval') {
       title = 'Fixify | Pending Approval';
     } else if (path === '/design') {
@@ -299,12 +303,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {/* Sidebar Footer: User Card & Collapse Toggle */}
         <div className="p-3 border-t border-border/70 space-y-2 shrink-0">
           {/* User Preview */}
-          <div
-            className={`flex items-center gap-2.5 p-2 rounded-lg bg-muted/40 border border-border/50 ${
+          <Link
+            to="/profile"
+            className={`flex items-center gap-2.5 p-2 rounded-lg bg-muted/40 hover:bg-muted/70 border border-border/50 transition-colors ${
               sidebarCollapsed ? 'justify-center p-1.5' : ''
             }`}
+            title="Manage Profile"
           >
             <Avatar status="online" className="h-8 w-8">
+              {(user.avatar?.url || user.picture) && (
+                <AvatarImage src={user.avatar?.url || user.picture} alt={user.name} />
+              )}
               <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
                 {user.name.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -319,7 +328,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 </p>
               </div>
             )}
-          </div>
+          </Link>
 
           {/* Collapse/Expand Sidebar Button */}
           <button
@@ -494,6 +503,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 aria-label="User Account Menu"
               >
                 <Avatar status="online" className="h-8 w-8">
+                  {(user.avatar?.url || user.picture) && (
+                    <AvatarImage src={user.avatar?.url || user.picture} alt={user.name} />
+                  )}
                   <AvatarFallback className="text-xs font-semibold bg-secondary text-foreground">
                     {user.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
@@ -522,6 +534,18 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                         {roleBadgeMap[user.role]?.label || user.role}
                       </Badge>
                     </div>
+                  </div>
+
+                  {/* Profile Link */}
+                  <div className="p-1 border-b border-border/70 mb-1">
+                    <Link
+                      to="/profile"
+                      onClick={() => setShowUserDropdown(false)}
+                      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted/70 transition-colors"
+                    >
+                      <UserIcon className="h-4 w-4 text-primary" strokeWidth={1.75} />
+                      <span>My Institutional Profile</span>
+                    </Link>
                   </div>
 
                   {/* Dev Fast Impersonation (VISIBLE ONLY IN DEVELOPMENT) */}
@@ -671,8 +695,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
             {/* Mobile User Profile & Switcher */}
             <div className="p-4 border-t border-border/70 space-y-3 bg-muted/20">
-              <div className="flex items-center gap-3">
+              <Link
+                to="/profile"
+                onClick={() => setMobileDrawerOpen(false)}
+                className="flex items-center gap-3 p-2 rounded-xl bg-card border border-border/80 hover:bg-muted/70 transition-colors"
+                title="Manage Profile"
+              >
                 <Avatar status="online" className="h-9 w-9">
+                  {(user.avatar?.url || user.picture) && (
+                    <AvatarImage src={user.avatar?.url || user.picture} alt={user.name} />
+                  )}
                   <AvatarFallback className="text-xs font-semibold bg-secondary text-foreground">
                     {user.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
@@ -681,7 +713,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   <p className="text-xs font-semibold text-foreground truncate">{user.name}</p>
                   <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                 </div>
-              </div>
+              </Link>
 
               {/* Dev Fast Switcher inside Mobile Drawer */}
               {import.meta.env.DEV && (

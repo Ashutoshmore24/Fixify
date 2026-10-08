@@ -14,6 +14,10 @@ export interface User {
   name: string;
   email: string;
   picture?: string;
+  avatar?: { url: string; publicId: string } | null;
+  banner?: { url: string; publicId: string } | null;
+  phone?: string;
+  bio?: string;
   role: UserRole;
   department?: string | { _id: string; name: string; code: string } | null;
   assignedLabs?: string[] | { _id: string; name: string; code: string }[];
@@ -27,6 +31,17 @@ export interface User {
   employeeId?: string;
   profileComplete?: boolean;
   approvalStatus?: ApprovalStatus;
+}
+
+export interface PublicProfileCard {
+  _id: string;
+  name: string;
+  role: UserRole;
+  avatar?: { url: string; publicId: string } | null;
+  picture?: string;
+  banner?: { url: string; publicId: string } | null;
+  department?: { _id: string; name: string; code: string } | null;
+  assignedLabs?: Array<{ _id: string; name: string; code: string }>;
 }
 
 export interface Laboratory {

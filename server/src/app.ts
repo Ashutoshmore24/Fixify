@@ -16,6 +16,7 @@ import { userRoutes } from './modules/users/user.routes';
 import { ticketRoutes } from './modules/tickets/ticket.routes';
 import { notificationRoutes } from './modules/notifications/notification.routes';
 import { uploadRoutes } from './modules/upload/upload.routes';
+import { profileRoutes } from './modules/profile/profile.routes';
 import { sendSuccess } from './common/utils/api-response';
 import { NotFoundError } from './common/errors/app-error';
 import path from 'path';
@@ -95,6 +96,7 @@ export const createApp = (): Application => {
   app.use('/api/v1/tickets', ticketRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/upload', uploadRoutes);
+  app.use('/api/v1/profile', profileRoutes);
 
   // Static uploads directory (local fallback)
   app.use('/uploads', express.static(path.resolve(__dirname, '../public/uploads')));

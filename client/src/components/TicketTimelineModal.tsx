@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Ticket, TicketStatus } from '../types';
 import { useSocket } from '../context/SocketContext';
+import { PublicProfileModal } from './profile/PublicProfileModal';
 
 interface TicketTimelineModalProps {
   ticket: Ticket | null;
@@ -23,6 +24,8 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
   onTicketUpdated,
 }) => {
   const { socket } = useSocket();
+  const [selectedAssistantId, setSelectedAssistantId] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ticket || !socket) return;
@@ -38,8 +41,6 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
       socket.off('ticket:updated', handleUpdate);
     };
   }, [ticket, socket, onTicketUpdated]);
-
-  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
 
   if (!ticket) return null;
 
@@ -131,6 +132,27 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
 
         {/* Content body */}
         <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+          {/* Assigned Assistant Card Trigger */}
+          {ticket.assignedTo && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/40 text-xs">
+              <span className="text-slate-600 dark:text-slate-400 font-medium">Assigned Assistant:</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedAssistantId(
+                    (ticket.assignedTo as any)?._id || (ticket.assignedTo as any)?.id
+                  )
+                }
+                className="font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 focus:outline-none"
+              >
+                <span>{ticket.assignedTo.name}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">
+                  View Profile ↗
+                </span>
+              </button>
+            </div>
+          )}
+
           {/* Description & Category */}
           <div className="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs space-y-1.5">
             <div className="flex justify-between items-center text-slate-500">
@@ -204,7 +226,21 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
                   <div className="flex-1 space-y-0.5">
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-slate-900 dark:text-slate-100">
-                        {entry.actor.name} <span className="text-[10px] text-slate-400 font-normal">({entry.actor.role})</span>
+                        {entry.actor.role === 'LAB_ASSISTANT' && (entry.actor as any).id ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAssistantId((entry.actor as any).id)}
+                            className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 focus:outline-none"
+                          >
+                            <span>{entry.actor.name}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">({entry.actor.role})</span>
+                          </button>
+                        ) : (
+                          <>
+                            {entry.actor.name}{' '}
+                            <span className="text-[10px] text-slate-400 font-normal">({entry.actor.role})</span>
+                          </>
+                        )}
                       </span>
                       <span className="text-[10px] text-slate-400">
                         {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -258,6 +294,12 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
           </div>
         </div>
       )}
+      {/* Public Profile Popover / Modal */}
+      <PublicProfileModal
+        userId={selectedAssistantId}
+        isOpen={Boolean(selectedAssistantId)}
+        onClose={() => setSelectedAssistantId(null)}
+      />
     </div>
   );
 };

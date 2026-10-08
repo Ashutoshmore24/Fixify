@@ -13,6 +13,7 @@ describe('Upload API Integration Endpoints (/api/v1/upload)', () => {
 
     userToken = AuthService.generateTokenFromPayload({
       id: '507f1f77bcf86cd799439011',
+      name: 'Student User',
       email: 'student@pccoepune.org',
       role: 'STUDENT',
       profileComplete: true,
