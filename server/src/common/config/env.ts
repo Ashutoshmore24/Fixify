@@ -31,7 +31,7 @@ const envSchema = z
     GOOGLE_CLIENT_SECRET: z.string().default('test-google-client-secret'),
     FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional().default(''),
     FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional().default(''),
-    PRN_REGEX: z.string().default('^[0-9]{8,12}[A-Za-z]?$'),
+    PRN_REGEX: z.string().default('^[A-Za-z0-9]{8,12}$'),
     ALLOWED_EMAIL_DOMAINS: z.string().default('pccoepune.org,gmail.com'),
     ADMIN_EMAIL: z.string().email().default('admin@pccoepune.org'),
     ESCALATION_TIMEOUT_HOURS: z.coerce.number().default(24),

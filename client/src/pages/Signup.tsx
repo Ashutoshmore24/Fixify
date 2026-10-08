@@ -23,6 +23,8 @@ import { useTheme } from '../context/ThemeContext';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
+import { CourseSelect } from '../components/ui/CourseSelect';
+import { DepartmentSelect } from '../components/ui/DepartmentSelect';
 import { FixifyLogo } from '../components/layout/FixifyLogo';
 import { PasswordStrengthMeter, calculatePasswordStrength } from '../components/auth/PasswordStrengthMeter';
 import { api } from '../lib/axios';
@@ -55,7 +57,7 @@ export const Signup: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Student-specific Fields
-  const [course, setCourse] = useState('B.Tech Computer Engineering');
+  const [course, setCourse] = useState('');
   const [year, setYear] = useState<'FE' | 'SE' | 'TE' | 'BE' | 'ME_1' | 'ME_2' | 'PHD'>('TE');
   const [division, setDivision] = useState('A');
   const [prn, setPrn] = useState('');
@@ -79,9 +81,6 @@ export const Signup: React.FC = () => {
         const res = await api.get('/departments');
         if (mounted && res.data?.success && Array.isArray(res.data.data)) {
           setDepartments(res.data.data);
-          if (res.data.data.length > 0) {
-            setDepartmentId((prev) => prev || res.data.data[0]._id);
-          }
         }
       } catch {
         // Fallback or leave empty
@@ -129,17 +128,17 @@ export const Signup: React.FC = () => {
     if (role === 'STUDENT') {
       if (!prn.trim()) {
         newErrors.prn = 'PRN is mandatory for student registration.';
-      } else if (!/^[0-9]{8,12}[A-Za-z]?$/.test(prn.trim())) {
-        newErrors.prn = 'PRN should be 8-12 alphanumeric digits (e.g. 12022001).';
+      } else if (!/^[A-Za-z0-9]{8,12}$/.test(prn.trim())) {
+        newErrors.prn = 'PRN must be 8-12 alphanumeric characters (e.g. 124B1F042).';
       }
       if (!course.trim()) {
-        newErrors.course = 'Course is required.';
+        newErrors.course = 'Please select your degree program and branch.';
       }
     }
 
     if (role === 'FACULTY') {
-      if (!departmentId && departments.length > 0) {
-        newErrors.department = 'Department selection is mandatory for faculty.';
+      if (!departmentId.trim()) {
+        newErrors.department = 'Please select your department and branch.';
       }
     }
 
@@ -167,7 +166,7 @@ export const Signup: React.FC = () => {
               course: course.trim(),
               year,
               division: division.trim(),
-              prn: prn.trim(),
+              prn: prn.trim().toUpperCase(),
             }
           : {
               department: departmentId || undefined,
@@ -493,18 +492,14 @@ export const Signup: React.FC = () => {
                   >
                     Degree Program / Course
                   </label>
-                  <Input
+                  <CourseSelect
                     id="signup-course"
-                    type="text"
-                    placeholder="B.Tech Computer Engineering"
                     value={course}
-                    onChange={(e) => {
-                      setCourse(e.target.value);
+                    onChange={(val) => {
+                      setCourse(val);
                       if (errors.course) setErrors((prev) => ({ ...prev, course: '' }));
                     }}
-                    leftIcon={<BookOpen className="w-4 h-4 text-muted-foreground" />}
                     error={errors.course}
-                    required
                   />
                 </div>
 
@@ -555,10 +550,10 @@ export const Signup: React.FC = () => {
                     <Input
                       id="signup-prn"
                       type="text"
-                      placeholder="12022001"
+                      placeholder="124B1FXXX"
                       value={prn}
                       onChange={(e) => {
-                        setPrn(e.target.value);
+                        setPrn(e.target.value.toUpperCase());
                         if (errors.prn) setErrors((prev) => ({ ...prev, prn: '' }));
                       }}
                       leftIcon={<Hash className="w-4 h-4 text-muted-foreground" />}
@@ -572,26 +567,22 @@ export const Signup: React.FC = () => {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground block">
+                    <label
+                      htmlFor="signup-department"
+                      className="text-xs font-semibold text-foreground block"
+                    >
                       Department
                     </label>
-                    <Select
+                    <DepartmentSelect
+                      id="signup-department"
                       value={departmentId}
-                      onChange={(e) => setDepartmentId(e.target.value)}
-                    >
-                      {departments.length === 0 ? (
-                        <option value="">Computer Engineering</option>
-                      ) : (
-                        departments.map((dept) => (
-                          <option key={dept._id} value={dept._id}>
-                            {dept.name} ({dept.code})
-                          </option>
-                        ))
-                      )}
-                    </Select>
-                    {errors.department && (
-                      <p className="text-xs text-destructive">{errors.department}</p>
-                    )}
+                      departments={departments}
+                      onChange={(val) => {
+                        setDepartmentId(val);
+                        if (errors.department) setErrors((prev) => ({ ...prev, department: '' }));
+                      }}
+                      error={errors.department}
+                    />
                   </div>
 
                   <div className="space-y-1.5">
