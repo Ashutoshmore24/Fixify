@@ -8,11 +8,17 @@ import {
   Building,
   Hash,
   BookOpen,
+  Sun,
+  Moon,
+  QrCode,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth, RegisterProfileData } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
+import { FixifyLogo } from '../components/layout/FixifyLogo';
 import { api } from '../lib/axios';
 import { getFriendlyAuthErrorMessage } from '../lib/firebase';
 
@@ -26,33 +32,37 @@ export const CompleteProfile: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, registerProfile, refreshUser } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
 
   const redirectTarget = searchParams.get('redirect') || '/report';
 
-  // Role selection
   const [role, setRole] = useState<'STUDENT' | 'FACULTY'>('STUDENT');
-
-  // Pre-fill names if available
-  const [firstName, setFirstName] = useState(user?.firstName || user?.name?.split(' ')[0] || '');
-  const [lastName, setLastName] = useState(
-    user?.lastName || user?.name?.split(' ').slice(1).join(' ') || ''
-  );
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   // Student fields
-  const [course, setCourse] = useState(user?.course || 'B.Tech Computer Engineering');
+  const [course, setCourse] = useState('B.Tech Computer Engineering');
   const [year, setYear] = useState<'FE' | 'SE' | 'TE' | 'BE' | 'ME_1' | 'ME_2' | 'PHD'>('TE');
-  const [division, setDivision] = useState(user?.division || 'A');
-  const [prn, setPrn] = useState(user?.prn || '');
+  const [division, setDivision] = useState('A');
+  const [prn, setPrn] = useState('');
 
   // Faculty fields
   const [departmentId, setDepartmentId] = useState('');
-  const [employeeId, setEmployeeId] = useState(user?.employeeId || '');
+  const [employeeId, setEmployeeId] = useState('');
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.name) {
+      const parts = user.name.split(' ');
+      setFirstName(parts[0] || '');
+      setLastName(parts.slice(1).join(' ') || '');
+    }
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -75,18 +85,7 @@ export const CompleteProfile: React.FC = () => {
     };
   }, []);
 
-  // Redirect if user already completed profile
-  useEffect(() => {
-    if (user && user.profileComplete) {
-      if (user.approvalStatus === 'PENDING_APPROVAL') {
-        navigate(`/pending-approval?redirect=${encodeURIComponent(redirectTarget)}`, { replace: true });
-      } else {
-        navigate(redirectTarget, { replace: true });
-      }
-    }
-  }, [user, redirectTarget, navigate]);
-
-  const validate = (): boolean => {
+  const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!firstName.trim()) newErrors.firstName = 'First name is required.';
@@ -94,16 +93,16 @@ export const CompleteProfile: React.FC = () => {
 
     if (role === 'STUDENT') {
       if (!prn.trim()) {
-        newErrors.prn = 'PRN is required for student verification.';
+        newErrors.prn = 'PRN is mandatory for student registration.';
       } else if (!/^[0-9]{8,12}[A-Za-z]?$/.test(prn.trim())) {
-        newErrors.prn = 'PRN should be 8-12 alphanumeric characters (e.g. 12022001).';
+        newErrors.prn = 'PRN should be 8-12 alphanumeric digits.';
       }
       if (!course.trim()) newErrors.course = 'Course is required.';
     }
 
     if (role === 'FACULTY') {
       if (!departmentId && departments.length > 0) {
-        newErrors.department = 'Department is required for faculty.';
+        newErrors.department = 'Department selection is mandatory for faculty.';
       }
     }
 
@@ -115,7 +114,7 @@ export const CompleteProfile: React.FC = () => {
     e.preventDefault();
     setServerError(null);
 
-    if (!validate()) return;
+    if (!validateForm()) return;
 
     try {
       setIsLoading(true);
@@ -153,282 +152,299 @@ export const CompleteProfile: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-lg bg-slate-800/90 backdrop-blur-xl border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative z-10">
-        <div className="text-center space-y-2">
-          <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-black text-2xl mx-auto shadow-lg shadow-blue-500/30">
-            F
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Complete Your Profile
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
-            Link your institutional details to finalize campus IT access
-          </p>
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 relative selection:bg-primary/20">
+      <div className="w-full max-w-5xl flex items-center justify-between pb-4 sm:pb-6">
+        <div className="lg:hidden flex items-center">
+          <FixifyLogo size={32} />
         </div>
-
-        {serverError && (
-          <div
-            className="p-3 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-xs flex items-start gap-2"
-            role="alert"
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="h-9 px-3 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+            aria-label="Toggle theme"
+            data-testid="theme-toggle"
           >
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-            <span>{serverError}</span>
-          </div>
-        )}
+            {isDark ? (
+              <>
+                <Sun className="h-4 w-4 text-amber-500" />
+                <span className="hidden sm:inline">Light</span>
+              </>
+            ) : (
+              <>
+                <Moon className="h-4 w-4 text-slate-700" />
+                <span className="hidden sm:inline">Dark</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
 
-        {/* Role Selector Tabs */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-300 block">
-            Select Your Role
-          </label>
-          <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900/80 border border-slate-700 rounded-xl">
-            <button
-              type="button"
-              onClick={() => {
-                setRole('STUDENT');
-                setErrors({});
-              }}
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition ${
-                role === 'STUDENT'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              Student
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setRole('FACULTY');
-                setErrors({});
-              }}
-              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition ${
-                role === 'FACULTY'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Briefcase className="w-4 h-4" />
-              Faculty
-            </button>
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-8 rounded-3xl bg-primary/5 border border-primary/15 relative overflow-hidden">
+          <div className="relative z-10 space-y-6">
+            <FixifyLogo size={42} />
+
+            <div className="space-y-2 pt-2">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground leading-snug">
+                Complete Institutional Profile
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Connect your institutional record to link lab assignments and maintenance reporting privileges.
+              </p>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-border/60">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-foreground">Verified Identity</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-normal">
+                    Secure institutional binding with PCCoE academic rolls.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                  <QrCode className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-foreground">Workstation Routing</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-normal">
+                    Assigned laboratory access configured instantly after completion.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-border/60 text-[11px] text-muted-foreground flex items-center justify-between">
+            <span>PCCoE Campus System</span>
+            <span className="font-semibold text-primary">v1.0 Institutional</span>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="profile-firstname"
-                className="text-xs font-semibold text-slate-300 block"
-              >
-                First Name
-              </label>
-              <Input
-                id="profile-firstname"
-                type="text"
-                placeholder="First name"
-                value={firstName}
-                onChange={(e) => {
-                  setFirstName(e.target.value);
-                  if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: '' }));
-                }}
-                leftIcon={<UserIcon className="w-4 h-4 text-slate-400" />}
-                className="bg-slate-900/80 border-slate-700 text-slate-100 placeholder:text-slate-500"
-                error={errors.firstName}
-                required
-              />
+        <div className="lg:col-span-7 w-full max-w-lg lg:max-w-none mx-auto bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-soft-lg space-y-6 relative">
+          <div className="space-y-1.5">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Complete Your Profile
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Link your institutional details to finalize campus IT access
+            </p>
+          </div>
+
+          {serverError && (
+            <div
+              className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-xs flex items-start gap-2"
+              role="alert"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{serverError}</span>
             </div>
-            <div className="space-y-1.5">
-              <label
-                htmlFor="profile-lastname"
-                className="text-xs font-semibold text-slate-300 block"
-              >
-                Last Name
-              </label>
-              <Input
-                id="profile-lastname"
-                type="text"
-                placeholder="Last name"
-                value={lastName}
-                onChange={(e) => {
-                  setLastName(e.target.value);
-                  if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: '' }));
+          )}
+
+          {/* Role Selector Tabs */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground block">
+              Select Your Role
+            </label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-muted/60 border border-border rounded-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setRole('STUDENT');
+                  setErrors({});
                 }}
-                className="bg-slate-900/80 border-slate-700 text-slate-100 placeholder:text-slate-500"
-                error={errors.lastName}
-                required
-              />
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition ${
+                  role === 'STUDENT'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-card/60'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4" />
+                Student
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRole('FACULTY');
+                  setErrors({});
+                }}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition ${
+                  role === 'FACULTY'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-card/60'
+                }`}
+              >
+                <Briefcase className="w-4 h-4" />
+                Faculty
+              </button>
             </div>
           </div>
 
-          {role === 'STUDENT' ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground block">
+                  First Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Rahul"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  leftIcon={<UserIcon className="w-4 h-4 text-muted-foreground" />}
+                  error={errors.firstName}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground block">
+                  Last Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Deshmukh"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  leftIcon={<UserIcon className="w-4 h-4 text-muted-foreground" />}
+                  error={errors.lastName}
+                  required
+                />
+              </div>
+            </div>
+
+            {role === 'STUDENT' ? (
+              <>
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="profile-course"
-                    className="text-xs font-semibold text-slate-300 block"
-                  >
-                    Course / Degree
+                  <label className="text-xs font-semibold text-foreground block">
+                    Degree Program / Course
                   </label>
                   <Input
-                    id="profile-course"
                     type="text"
-                    placeholder="B.Tech Computer"
+                    placeholder="B.Tech Computer Engineering"
                     value={course}
-                    onChange={(e) => {
-                      setCourse(e.target.value);
-                      if (errors.course) setErrors((prev) => ({ ...prev, course: '' }));
-                    }}
-                    leftIcon={<BookOpen className="w-4 h-4 text-slate-400" />}
-                    className="bg-slate-900/80 border-slate-700 text-slate-100 placeholder:text-slate-500"
+                    onChange={(e) => setCourse(e.target.value)}
+                    leftIcon={<BookOpen className="w-4 h-4 text-muted-foreground" />}
                     error={errors.course}
                     required
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="profile-prn"
-                    className="text-xs font-semibold text-slate-300 block"
-                  >
-                    Permanent Reg. Number (PRN)
-                  </label>
-                  <Input
-                    id="profile-prn"
-                    type="text"
-                    placeholder="12022001"
-                    value={prn}
-                    onChange={(e) => {
-                      setPrn(e.target.value);
-                      if (errors.prn) setErrors((prev) => ({ ...prev, prn: '' }));
-                    }}
-                    leftIcon={<Hash className="w-4 h-4 text-slate-400" />}
-                    className="bg-slate-900/80 border-slate-700 text-slate-100 placeholder:text-slate-500"
-                    error={errors.prn}
-                    required
-                  />
-                </div>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground block">
+                      Year
+                    </label>
+                    <Select
+                      value={year}
+                      onChange={(e) => setYear(e.target.value as 'FE' | 'SE' | 'TE' | 'BE' | 'ME_1' | 'ME_2' | 'PHD')}
+                    >
+                      <option value="FE">First Year (FE)</option>
+                      <option value="SE">Second Year (SE)</option>
+                      <option value="TE">Third Year (TE)</option>
+                      <option value="BE">Final Year (BE)</option>
+                      <option value="ME_1">M.Tech Year 1</option>
+                      <option value="ME_2">M.Tech Year 2</option>
+                      <option value="PHD">PhD Scholar</option>
+                    </Select>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="profile-year"
-                    className="text-xs font-semibold text-slate-300 block"
-                  >
-                    Academic Year
-                  </label>
-                  <Select
-                    id="profile-year"
-                    value={year}
-                    onChange={(e) =>
-                      setYear(e.target.value as 'FE' | 'SE' | 'TE' | 'BE' | 'ME_1' | 'ME_2' | 'PHD')
-                    }
-                    className="bg-slate-900/80 border-slate-700 text-slate-100"
-                  >
-                    <option value="FE">First Year (FE)</option>
-                    <option value="SE">Second Year (SE)</option>
-                    <option value="TE">Third Year (TE)</option>
-                    <option value="BE">Final Year (BE)</option>
-                    <option value="ME_1">M.Tech Year 1</option>
-                    <option value="ME_2">M.Tech Year 2</option>
-                    <option value="PHD">Ph.D Scholar</option>
-                  </Select>
-                </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground block">
+                      Division
+                    </label>
+                    <Input
+                      type="text"
+                      maxLength={2}
+                      placeholder="A"
+                      value={division}
+                      onChange={(e) => setDivision(e.target.value.toUpperCase())}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="profile-division"
-                    className="text-xs font-semibold text-slate-300 block"
-                  >
-                    Division
-                  </label>
-                  <Input
-                    id="profile-division"
-                    type="text"
-                    placeholder="A"
-                    value={division}
-                    onChange={(e) => setDivision(e.target.value)}
-                    className="bg-slate-900/80 border-slate-700 text-slate-100 placeholder:text-slate-500"
-                  />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground block">
+                      PRN
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="12022001"
+                      value={prn}
+                      onChange={(e) => setPrn(e.target.value)}
+                      leftIcon={<Hash className="w-4 h-4 text-muted-foreground" />}
+                      error={errors.prn}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
-            </>
-          ) : (
-            <>
+              </>
+            ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="profile-dept"
-                    className="text-xs font-semibold text-slate-300 block"
-                  >
+                  <label className="text-xs font-semibold text-foreground block">
                     Department
                   </label>
-                  {departments.length > 0 ? (
-                    <Select
-                      id="profile-dept"
-                      value={departmentId}
-                      onChange={(e) => {
-                        setDepartmentId(e.target.value);
-                        if (errors.department) setErrors((prev) => ({ ...prev, department: '' }));
-                      }}
-                      className="bg-slate-900/80 border-slate-700 text-slate-100"
-                      error={errors.department}
-                    >
-                      {departments.map((dept) => (
+                  <Select
+                    value={departmentId}
+                    onChange={(e) => setDepartmentId(e.target.value)}
+                  >
+                    {departments.length === 0 ? (
+                      <option value="">Computer Engineering</option>
+                    ) : (
+                      departments.map((dept) => (
                         <option key={dept._id} value={dept._id}>
                           {dept.name} ({dept.code})
                         </option>
-                      ))}
-                    </Select>
-                  ) : (
-                    <Input
-                      id="profile-dept"
-                      type="text"
-                      placeholder="Department"
-                      value={departmentId}
-                      onChange={(e) => setDepartmentId(e.target.value)}
-                      leftIcon={<Building className="w-4 h-4 text-slate-400" />}
-                      className="bg-slate-900/80 border-slate-700 text-slate-100"
-                      error={errors.department}
-                    />
+                      ))
+                    )}
+                  </Select>
+                  {errors.department && (
+                    <p className="text-xs text-destructive">{errors.department}</p>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="profile-emp-id"
-                    className="text-xs font-semibold text-slate-300 block"
-                  >
+                  <label className="text-xs font-semibold text-foreground block">
                     Employee ID (Optional)
                   </label>
                   <Input
-                    id="profile-emp-id"
                     type="text"
                     placeholder="EMP-1042"
                     value={employeeId}
                     onChange={(e) => setEmployeeId(e.target.value)}
-                    leftIcon={<Hash className="w-4 h-4 text-slate-400" />}
-                    className="bg-slate-900/80 border-slate-700 text-slate-100 placeholder:text-slate-500"
+                    leftIcon={<Building className="w-4 h-4 text-muted-foreground" />}
                   />
                 </div>
               </div>
-            </>
-          )}
+            )}
 
-          <Button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition mt-2"
-            isLoading={isLoading}
-          >
-            Complete Registration
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold py-2.5 rounded-xl shadow-md transition mt-2"
+              isLoading={isLoading}
+            >
+              Save & Continue
+            </Button>
+          </form>
+
+          {/* SRS 6.2 Institutional Privacy Notice */}
+          <div className="pt-3 border-t border-border">
+            <div className="bg-muted/40 rounded-xl p-3 border border-border text-[11px] text-muted-foreground space-y-1">
+              <div className="font-semibold text-foreground flex items-center gap-1.5">
+                <span>🔒</span> Institutional Privacy Notice (SRS 6.2)
+              </div>
+              <p className="leading-relaxed">
+                Passwords are handled securely by Firebase Authentication and never stored by Fixify; we keep only name, institutional email, PRN/course details and role; no third-party tracking.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
