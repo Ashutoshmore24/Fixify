@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { api } from '../../lib/axios';
 import { NotificationItem, UserRole } from '../../types';
+import { useTheme } from '../../context/ThemeContext';
 import { FixifyLogo } from './FixifyLogo';
 import {
   Avatar,
@@ -45,15 +46,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const { user, logout, devLogin } = useAuth();
   const { socket } = useSocket();
   const location = useLocation();
+  const { isDark, toggleTheme } = useTheme();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotificationPopover, setShowNotificationPopover] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [isDark, setIsDark] = useState(() =>
-    document.documentElement.classList.contains('dark')
-  );
 
   // Close mobile drawer on route transition
   useEffect(() => {
@@ -123,16 +122,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch {
       // Ignore
-    }
-  };
-
-  const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove('dark');
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      setIsDark(true);
     }
   };
 
@@ -427,8 +416,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               >
                 <Bell className="h-4.5 w-4.5" strokeWidth={1.75} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
-                    {unreadCount}
+                  <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
@@ -744,6 +733,25 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   </div>
                 </div>
               )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleTheme}
+                className="w-full text-xs flex items-center justify-center gap-2"
+              >
+                {isDark ? (
+                  <>
+                    <Sun className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Switch to Light Theme</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-3.5 w-3.5 text-slate-700" />
+                    <span>Switch to Dark Theme</span>
+                  </>
+                )}
+              </Button>
 
               <Button
                 variant="outline"

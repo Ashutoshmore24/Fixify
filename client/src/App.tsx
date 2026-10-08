@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { ToastProvider } from './components/ui/Toast';
@@ -39,10 +40,11 @@ const PageLoaderFallback: React.FC = () => (
 export const App: React.FC = () => {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AuthProvider>
-        <SocketProvider>
-          <ToastProvider>
-            <AppShell>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <ToastProvider>
+              <AppShell>
               <IdleTimeoutModal />
 
               <Suspense fallback={<PageLoaderFallback />}>
@@ -99,7 +101,8 @@ export const App: React.FC = () => {
           </ToastProvider>
         </SocketProvider>
       </AuthProvider>
-    </Router>
+    </ThemeProvider>
+  </Router>
   );
 };
 

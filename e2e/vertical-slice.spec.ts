@@ -35,7 +35,7 @@ test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant 
     await expect(page.locator('text=1/3 Photos')).toBeVisible();
 
     // Submit the complaint
-    await page.click('[data-testid="submit-complaint-btn"]');
+    await page.locator('[data-testid="submit-complaint-btn"]:visible').click();
 
     // Verify success confirmation with sequential annual Ticket ID (REQ-1.8)
     await expect(page.locator('text=Complaint Registered')).toBeVisible();

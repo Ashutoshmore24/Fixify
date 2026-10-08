@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { api } from '../lib/axios';
 import { NotificationItem, UserRole } from '../types';
+import { FixifyLogo } from './layout/FixifyLogo';
 
 export const Navbar: React.FC = () => {
   const { user, logout, devLogin } = useAuth();
@@ -54,7 +55,7 @@ export const Navbar: React.FC = () => {
   const roleColors: Record<UserRole, string> = {
     STUDENT: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
     FACULTY: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
-    LAB_ASSISTANT: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+    LAB_ASSISTANT: 'bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-400 border-teal-200 dark:border-teal-800',
     DEPT_AUTHORITY: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800',
     HOD: 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400 border-purple-200 dark:border-purple-800',
     ADMIN: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border-rose-200 dark:border-rose-800',
@@ -63,18 +64,13 @@ export const Navbar: React.FC = () => {
   if (!user) return null;
 
   return (
-    <nav className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <nav className="sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b border-border transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-lg shadow-md shadow-blue-500/20">
-                F
-              </div>
-              <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-slate-100">
-                Fixify
-              </span>
+              <FixifyLogo size={32} />
             </Link>
 
             {/* Nav Links */}
@@ -83,8 +79,8 @@ export const Navbar: React.FC = () => {
                 to="/report"
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                   location.pathname.startsWith('/report')
-                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-primary/10 text-primary font-semibold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
                 }`}
               >
                 Report Issue
@@ -94,8 +90,8 @@ export const Navbar: React.FC = () => {
                 to="/my-complaints"
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                   location.pathname === '/my-complaints'
-                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-primary/10 text-primary font-semibold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
                 }`}
               >
                 My Complaints
@@ -106,8 +102,8 @@ export const Navbar: React.FC = () => {
                   to="/assistant"
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                     location.pathname === '/assistant'
-                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      ? 'bg-primary/10 text-primary font-semibold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
                   }`}
                 >
                   Assistant Dashboard
@@ -146,23 +142,23 @@ export const Navbar: React.FC = () => {
                   />
                 </svg>
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
-                    {unreadCount}
+                  <span className="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
 
               {/* Notification Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-3 px-4 z-50">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700 mb-2">
-                    <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">
+                <div className="absolute right-0 mt-2 w-80 bg-card rounded-2xl shadow-xl border border-border py-3 px-4 z-50">
+                  <div className="flex items-center justify-between pb-2 border-b border-border/70 mb-2">
+                    <span className="font-semibold text-sm text-foreground">
                       Notifications
                     </span>
                     {unreadCount > 0 && (
                       <button
                         onClick={handleMarkAllRead}
-                        className="text-xs text-blue-600 hover:underline"
+                        className="text-xs text-primary hover:underline font-medium"
                       >
                         Mark all read
                       </button>
@@ -170,15 +166,15 @@ export const Navbar: React.FC = () => {
                   </div>
                   <div className="max-h-64 overflow-y-auto space-y-2">
                     {notifications.length === 0 ? (
-                      <p className="text-xs text-slate-400 py-4 text-center">No notifications yet</p>
+                      <p className="text-xs text-muted-foreground py-4 text-center">No notifications yet</p>
                     ) : (
                       notifications.map((n) => (
                         <div
                           key={n._id}
                           className={`p-2.5 rounded-xl text-xs transition ${
                             n.read
-                              ? 'bg-transparent text-slate-500'
-                              : 'bg-blue-50/60 dark:bg-blue-950/40 text-slate-900 dark:text-slate-100 font-medium'
+                              ? 'bg-transparent text-muted-foreground'
+                              : 'bg-primary/10 text-foreground font-medium'
                           }`}
                         >
                           <div className="font-semibold">{n.title}</div>

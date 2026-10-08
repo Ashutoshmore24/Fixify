@@ -1,9 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  CheckCircle2,
+  Copy,
+  Check,
+  MapPin,
+  AlertTriangle,
+  ArrowRight,
+  Search,
+} from 'lucide-react';
 import { api } from '../lib/axios';
 import { Computer, Laboratory, TicketCategory } from '../types';
 import { ElectricalSafetyModal } from '../components/ElectricalSafetyModal';
 import { ImageUploader } from '../features/complaints/ImageUploader';
+import { Badge } from '../components/ui/Badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../components/ui/Dialog';
 
 const SAFETY_KEYWORDS = [
   'spark',
@@ -30,13 +47,9 @@ export const ReportComplaint: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Form states (<= 4 actions)
-  // Action 1: Selected Computer
   const [selectedComputerId, setSelectedComputerId] = useState<string>('');
-  // Action 2: Selected Category
   const [category, setCategory] = useState<TicketCategory>('HARDWARE');
-  // Action 3: Description
   const [description, setDescription] = useState<string>('');
-  // Action 4: Optional Image attachment (mock/base64 URL or uploaded URL)
   const [images, setImages] = useState<string[]>([]);
 
   // Safety Modal
@@ -44,10 +57,15 @@ export const ReportComplaint: React.FC = () => {
   const [safetyKeywordDetected, setSafetyKeywordDetected] = useState<string>('');
   const [safetyAcknowledged, setSafetyAcknowledged] = useState<boolean>(false);
 
+  // Lab Picker modal (in production when user clicks "Wrong lab?")
+  const [labPickerOpen, setLabPickerOpen] = useState(false);
+  const [labSearchQuery, setLabSearchQuery] = useState('');
+
   // Submitting state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successTicketId, setSuccessTicketId] = useState<string | null>(null);
+  const [copiedTicketId, setCopiedTicketId] = useState(false);
 
   // Fetch labs and resolve current lab
   useEffect(() => {
@@ -59,12 +77,15 @@ export const ReportComplaint: React.FC = () => {
           const labs: Laboratory[] = res.data.data;
           setAllLabs(labs);
 
-          const matched = labs.find((l) => l.code === labCodeFromQuery.toUpperCase()) || labs[0] || null;
+          const matched =
+            labs.find((l) => l.code === labCodeFromQuery.toUpperCase()) || labs[0] || null;
           setCurrentLab(matched);
         }
       })
       .catch((err) => {
-        setErrorMessage(err.response?.data?.error?.message || 'Failed to load laboratory details');
+        setErrorMessage(
+          err.response?.data?.error?.message || 'Failed to load laboratory details'
+        );
       })
       .finally(() => {
         setIsLoading(false);
@@ -118,14 +139,46 @@ export const ReportComplaint: React.FC = () => {
     [computers, selectedComputerId]
   );
 
+  const availableCount = useMemo(
+    () => computers.filter((c) => !c.activeTicket).length,
+    [computers]
+  );
+
+  const priorityHint = useMemo(() => {
+    if (category === 'ELECTRICAL') return 'Critical (Electrical Hazard)';
+    if (category === 'NETWORK') return 'High (Network Downtime)';
+    return 'Normal (Standard SLA)';
+  }, [category]);
+
+  const handleCopyTicket = () => {
+    if (!successTicketId) return;
+    navigator.clipboard.writeText(successTicketId);
+    setCopiedTicketId(true);
+    setTimeout(() => setCopiedTicketId(false), 2000);
+  };
+
+  const handleSelectLab = (labCode: string) => {
+    setSearchParams({ lab: labCode });
+    setSelectedComputerId('');
+    setLabPickerOpen(false);
+  };
+
+  const filteredLabs = useMemo(() => {
+    if (!labSearchQuery.trim()) return allLabs;
+    const q = labSearchQuery.toLowerCase();
+    return allLabs.filter(
+      (l) => l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q) || l.building.toLowerCase().includes(q)
+    );
+  }, [allLabs, labSearchQuery]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedComputerId) {
-      setErrorMessage('Please select an affected computer workstation (Action 1)');
+      setErrorMessage('Please select an affected computer workstation (Step 1)');
       return;
     }
     if (description.trim().length < 10) {
-      setErrorMessage('Please provide a detailed description (min 10 characters)');
+      setErrorMessage('Please provide a detailed description (minimum 10 characters)');
       return;
     }
     if (!currentLab) return;
@@ -158,55 +211,95 @@ export const ReportComplaint: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-9 h-9 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-muted-foreground font-medium">Resolving laboratory workstation data...</p>
       </div>
     );
   }
 
+  // SUCCESS SCREEN
   if (successTicketId) {
     return (
-      <div className="max-w-md mx-auto p-4 py-8 text-center space-y-6">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-500/20">
-          ✓
+      <div className="max-w-md mx-auto p-4 py-12 text-center space-y-6 animate-in fade-in-0 duration-200">
+        <div className="w-16 h-16 rounded-3xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-3xl mx-auto shadow-soft">
+          <CheckCircle2 className="w-9 h-9" />
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
             Complaint Registered
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Ticket ID: <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{successTicketId}</span>
+          <p className="text-xs text-muted-foreground">
+            Your complaint has been queued and assigned to the lab assistant.
           </p>
         </div>
-        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-left text-xs space-y-2">
-          <div className="flex justify-between">
-            <span className="text-slate-500">Laboratory:</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-200">{currentLab?.name} ({currentLab?.code})</span>
+
+        {/* Ticket ID Box with Copy Button */}
+        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center justify-between gap-3">
+          <div className="text-left">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+              Sequential Ticket ID (REQ-1.8)
+            </span>
+            <span className="font-mono text-lg font-bold text-primary tracking-tight">
+              {successTicketId}
+            </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">Workstation:</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedComputer?.label} ({selectedComputer?.assetTag})</span>
+
+          <button
+            type="button"
+            onClick={handleCopyTicket}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border hover:bg-muted text-xs font-semibold text-foreground transition shadow-2xs"
+            aria-label="Copy ticket ID to clipboard"
+          >
+            {copiedTicketId ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-600 font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Summary Card */}
+        <div className="bg-card p-4 rounded-2xl border border-border text-left text-xs space-y-2.5 shadow-2xs">
+          <div className="flex justify-between items-center pb-2 border-b border-border/70">
+            <span className="text-muted-foreground">Laboratory:</span>
+            <span className="font-semibold text-foreground">{currentLab?.name} ({currentLab?.code})</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">Auto-Assignment:</span>
-            <span className="font-semibold text-emerald-600">Assigned to Lab Assistant (BR-4)</span>
+          <div className="flex justify-between items-center pb-2 border-b border-border/70">
+            <span className="text-muted-foreground">Workstation:</span>
+            <span className="font-semibold text-foreground">{selectedComputer?.label} ({selectedComputer?.assetTag})</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Auto-Assignment:</span>
+            <span className="font-semibold text-primary">Assigned to Lab Assistant (BR-4)</span>
           </div>
         </div>
-        <div className="flex gap-3">
+
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button
+            type="button"
             onClick={() => navigate('/my-complaints')}
-            className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md transition"
+            className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold text-sm shadow-md transition"
           >
             Track Status
           </button>
           <button
+            type="button"
             onClick={() => {
               setSuccessTicketId(null);
               setSelectedComputerId('');
               setDescription('');
               setImages([]);
+              setSafetyAcknowledged(false);
             }}
-            className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-sm transition"
+            className="flex-1 py-3 px-4 rounded-xl border border-border hover:bg-muted text-foreground font-semibold text-sm transition"
           >
             Report Another
           </button>
@@ -216,8 +309,8 @@ export const ReportComplaint: React.FC = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto p-4 pb-20 space-y-6">
-      {/* Safety modal */}
+    <div className="pb-28 lg:pb-8">
+      {/* Electrical Safety Warning Modal */}
       <ElectricalSafetyModal
         isOpen={showSafetyModal}
         detectedKeyword={safetyKeywordDetected}
@@ -227,209 +320,366 @@ export const ReportComplaint: React.FC = () => {
         }}
       />
 
-      {/* Lab Header & Switcher */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Scanned Laboratory
-            </span>
-          </div>
-          {allLabs.length > 1 && (
-            <select
-              value={currentLab?.code || ''}
-              onChange={(e) => {
-                const selectedCode = e.target.value;
-                setSearchParams({ lab: selectedCode });
-                setSelectedComputerId('');
-              }}
-              className="text-xs bg-slate-100 dark:bg-slate-700 border-none rounded-lg py-1 px-2 font-medium"
-            >
-              {allLabs.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.code}
-                </option>
+      {/* Lab Picker Dialog (Used in production when user clicks "Wrong lab?") */}
+      <Dialog open={labPickerOpen} onOpenChange={setLabPickerOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Select Laboratory</DialogTitle>
+            <DialogDescription>
+              Choose your laboratory if you scanned a different QR or deep link.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="relative">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search lab by name or code..."
+                value={labSearchQuery}
+                onChange={(e) => setLabSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+              {filteredLabs.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => handleSelectLab(l.code)}
+                  className={`w-full p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                    currentLab?.code === l.code
+                      ? 'border-primary bg-primary/10 text-primary font-semibold'
+                      : 'border-border hover:bg-muted text-foreground'
+                  }`}
+                >
+                  <div>
+                    <div className="text-xs font-semibold">{l.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{l.building}</div>
+                  </div>
+                  <Badge variant="outline" size="sm">{l.code}</Badge>
+                </button>
               ))}
-            </select>
-          )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MOBILE STEP INDICATORS (<1024px) */}
+      <div className="lg:hidden mb-4 p-3 bg-card border border-border rounded-2xl flex items-center justify-between text-xs">
+        <div className={`flex items-center gap-1.5 ${selectedComputerId ? 'text-primary font-semibold' : 'text-foreground'}`}>
+          <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">1</span>
+          <span>PC</span>
         </div>
-        <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-          {currentLab?.name || 'Loading Laboratory...'}
-        </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          📍 {currentLab?.building}
-        </p>
+        <div className="w-4 h-px bg-border" />
+        <div className={`flex items-center gap-1.5 ${category ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+          <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">2</span>
+          <span>Category</span>
+        </div>
+        <div className="w-4 h-px bg-border" />
+        <div className={`flex items-center gap-1.5 ${description.length >= 10 ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+          <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">3</span>
+          <span>Details</span>
+        </div>
       </div>
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-medium">
-          {errorMessage}
+        <div
+          className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-xs font-medium flex items-center gap-2"
+          role="alert"
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ACTION 1: PICK COMPUTER */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
-                1
-              </span>
-              Pick Affected Computer
-            </h2>
-            <span className="text-[11px] text-slate-400">
-              {computers.filter((c) => !c.activeTicket).length} Available
-            </span>
+      {/* MAIN TWO-COLUMN LAYOUT ON DESKTOP (>=1024px) */}
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* ========================================================== */}
+          {/* LEFT COLUMN: SCANNED LAB CARD + PC GRID (lg:col-span-7) */}
+          {/* ========================================================== */}
+          <div className="lg:col-span-7 space-y-5">
+            {/* Scanned Lab Card */}
+            <div className="bg-card p-4 sm:p-5 rounded-2xl border border-border shadow-2xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Scanned Laboratory
+                  </span>
+                </div>
+
+                {/* Lab switcher: Dropdown in dev, text link in production */}
+                {import.meta.env.DEV ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 font-mono px-1.5 py-0.5 rounded">DEV</span>
+                    <select
+                      value={currentLab?.code || ''}
+                      onChange={(e) => {
+                        const selectedCode = e.target.value;
+                        setSearchParams({ lab: selectedCode });
+                        setSelectedComputerId('');
+                      }}
+                      className="text-xs bg-muted border border-border rounded-lg py-1 px-2 font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {allLabs.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setLabPickerOpen(true)}
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    Wrong lab?
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                  {currentLab?.name || 'Loading Laboratory...'}
+                </h1>
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>{currentLab?.building}</span>
+                  <span className="mx-1">•</span>
+                  <span className="font-mono font-semibold">{currentLab?.code}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* PC Workstation Grid */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
+                    1
+                  </span>
+                  Pick Affected Workstation
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  <strong className="text-foreground">{availableCount}</strong> Available / {computers.length} Total
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+                {computers.map((pc) => {
+                  const isBusy = Boolean(pc.activeTicket);
+                  const isSelected = selectedComputerId === pc._id;
+
+                  return (
+                    <div
+                      key={pc._id}
+                      data-testid={`pc-card-${pc.label}`}
+                      onClick={() => {
+                        if (!isBusy) {
+                          setSelectedComputerId(pc._id);
+                        }
+                      }}
+                      className={`relative p-3 rounded-2xl border text-left transition select-none ${
+                        isBusy
+                          ? 'bg-amber-500/10 border-amber-500/40 text-amber-950 dark:text-amber-100 cursor-not-allowed opacity-90'
+                          : isSelected
+                          ? 'bg-primary/10 border-primary ring-2 ring-primary/20 shadow-soft cursor-pointer'
+                          : 'bg-card border-border hover:border-primary/50 hover:bg-muted/40 cursor-pointer shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-bold text-sm text-foreground truncate">
+                          {pc.label}
+                        </span>
+                        {isBusy ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500 text-white uppercase tracking-wider">
+                            Busy
+                          </span>
+                        ) : (
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isSelected ? 'bg-primary' : 'bg-emerald-500'
+                            }`}
+                          />
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                        {pc.assetTag}
+                      </p>
+
+                      {/* Busy PC Link to Active Ticket */}
+                      {isBusy && pc.activeTicket && (
+                        <div className="mt-2 pt-1 border-t border-amber-500/30">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate('/my-complaints');
+                            }}
+                            className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 group"
+                          >
+                            <span>Active ticket {pc.activeTicket.ticketId}</span>
+                            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-            {computers.map((pc) => {
-              const isBusy = Boolean(pc.activeTicket);
-              const isSelected = selectedComputerId === pc._id;
+          {/* ========================================================== */}
+          {/* RIGHT COLUMN: STICKY DETAILS PANEL (lg:col-span-5) */}
+          {/* ========================================================== */}
+          <div className="lg:col-span-5">
+            <div className="lg:sticky lg:top-20 space-y-5 bg-card border border-border p-4 sm:p-5 rounded-2xl shadow-soft">
+              {/* Category Picker */}
+              <div className="space-y-2.5">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
+                    2
+                  </span>
+                  Issue Category
+                </h2>
 
-              return (
-                <div
-                  key={pc._id}
-                  data-testid={`pc-card-${pc.label}`}
-                  onClick={() => {
-                    if (!isBusy) {
-                      setSelectedComputerId(pc._id);
-                    }
-                  }}
-                  className={`relative p-3 rounded-xl border text-left transition ${
-                    isBusy
-                      ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/60 opacity-80 cursor-not-allowed'
-                      : isSelected
-                      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 shadow-md ring-2 ring-blue-500/20 cursor-pointer'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                      {pc.label}
-                    </span>
-                    {isBusy ? (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500 text-white uppercase">
-                        Busy
-                      </span>
-                    ) : (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">{pc.assetTag}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {categories.map((cat) => {
+                    const isSelected = category === cat.id;
+                    const isHazard = cat.id === 'ELECTRICAL';
 
-                  {/* BR-3 Link to current active ticket if busy */}
-                  {isBusy && pc.activeTicket && (
-                    <div className="mt-2 pt-1 border-t border-amber-200 dark:border-amber-800/40">
+                    return (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate('/my-complaints');
-                        }}
-                        className="text-[10px] font-medium text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1"
+                        key={cat.id}
+                        onClick={() => setCategory(cat.id)}
+                        className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                          isSelected
+                            ? isHazard
+                              ? 'bg-rose-500/10 border-rose-500 ring-2 ring-rose-500/20'
+                              : 'bg-primary/10 border-primary ring-2 ring-primary/20'
+                            : 'bg-background border-border hover:border-primary/40'
+                        }`}
                       >
-                        Active Ticket: {pc.activeTicket.ticketId} →
+                        <span className="text-lg mb-1">{cat.icon}</span>
+                        <div>
+                          <div className="text-xs font-bold text-foreground">
+                            {cat.label}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                            {cat.desc}
+                          </div>
+                        </div>
                       </button>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+
+              {/* Description & Character Count */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
+                      3
+                    </span>
+                    Description
+                  </h2>
+                  <span className={`text-[10px] ${description.length < 10 ? 'text-muted-foreground' : 'text-primary font-medium'}`}>
+                    {description.length}/500 chars (min 10)
+                  </span>
+                </div>
+
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+                  rows={3}
+                  placeholder="Describe what's wrong (e.g. PC won't power on, monitor display flickering, blue screen loop, mouse not responding)..."
+                  className="w-full rounded-xl border border-border bg-background p-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground"
+                  required
+                />
+              </div>
+
+              {/* Photo Upload with previews and remove */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
+                      4
+                    </span>
+                    Attach Photo (Optional)
+                  </h2>
+                  <span className="text-[10px] text-muted-foreground">
+                    {images.length}/3 Photos
+                  </span>
+                </div>
+
+                <ImageUploader
+                  value={images}
+                  onChange={(newImages) => setImages(newImages)}
+                  maxImages={3}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Selection Summary */}
+              <div className="pt-3 border-t border-border/70 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Workstation:</span>
+                  <span className="font-semibold text-foreground">
+                    {selectedComputer ? `${selectedComputer.label} (${selectedComputer.assetTag})` : 'None selected'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Category:</span>
+                  <span className="font-semibold text-foreground">{category}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Priority Hint:</span>
+                  <span className={`font-semibold ${category === 'ELECTRICAL' ? 'text-destructive font-bold' : 'text-primary'}`}>
+                    {priorityHint}
+                  </span>
+                </div>
+              </div>
+
+              {/* Desktop Submit Button (Hidden on mobile where sticky bottom submit bar takes over) */}
+              <button
+                type="submit"
+                data-testid="submit-complaint-btn"
+                disabled={isSubmitting || !selectedComputerId || description.trim().length < 10}
+                className="hidden lg:block w-full py-3 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-sm shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
+              >
+                {isSubmitting ? 'Registering Complaint...' : 'Register Complaint'}
+              </button>
+            </div>
           </div>
-        </section>
+        </div>
 
-        {/* ACTION 2: CATEGORY PICKER */}
-        <section className="space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
-              2
-            </span>
-            Issue Category
-          </h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {categories.map((cat) => {
-              const isSelected = category === cat.id;
-              const isHazard = cat.id === 'ELECTRICAL';
-
-              return (
-                <button
-                  type="button"
-                  key={cat.id}
-                  onClick={() => setCategory(cat.id)}
-                  className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
-                    isSelected
-                      ? isHazard
-                        ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 ring-2 ring-rose-500/20'
-                        : 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/20'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <span className="text-xl mb-1">{cat.icon}</span>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                      {cat.label}
-                    </div>
-                    <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{cat.desc}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ACTION 3: DESCRIPTION & SAFETY AUTO-CHECK */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
-                3
+        {/* MOBILE STICKY BOTTOM SUBMIT BAR (<1024px) */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-card/95 backdrop-blur-md border-t border-border z-30 shadow-lg">
+          <div className="max-w-md mx-auto space-y-2">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+              <span>{selectedComputer ? `PC: ${selectedComputer.label}` : 'Select a PC'} • {category}</span>
+              <span className={category === 'ELECTRICAL' ? 'text-destructive font-bold' : 'text-primary'}>
+                {priorityHint}
               </span>
-              Description
-            </h2>
-            <span className="text-[10px] text-slate-400">Min 10 characters</span>
+            </div>
+
+            <button
+              type="submit"
+              data-testid="submit-complaint-btn"
+              disabled={isSubmitting || !selectedComputerId || description.trim().length < 10}
+              className="w-full py-3 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-sm shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
+            >
+              {isSubmitting ? 'Registering Complaint...' : 'Register Complaint'}
+            </button>
           </div>
-
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            placeholder="Describe what's wrong (e.g. PC won't power on, blue screen loop, mouse not responding)..."
-            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
-          />
-        </section>
-
-        {/* ACTION 4: OPTIONAL IMAGE UPLOAD (REQ-1.6 Cloudinary Integration) */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
-                4
-              </span>
-              Add Photo (Optional)
-            </h2>
-            <span className="text-[10px] text-slate-400">{images.length}/3 Photos</span>
-          </div>
-
-          <ImageUploader
-            value={images}
-            onChange={(newImages) => setImages(newImages)}
-            maxImages={3}
-            disabled={isSubmitting}
-          />
-        </section>
-
-        {/* SUBMIT BUTTON */}
-        <button
-          type="submit"
-          data-testid="submit-complaint-btn"
-          disabled={isSubmitting || !selectedComputerId || description.length < 10}
-          className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-blue-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
-        >
-          {isSubmitting ? 'Submitting Complaint...' : 'Register Complaint'}
-        </button>
+        </div>
       </form>
     </div>
   );
