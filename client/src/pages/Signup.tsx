@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Building,
   Hash,
-  BookOpen,
   QrCode,
   Activity,
   ShieldCheck,

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CloudinaryService } from '../src/common/services/cloudinary.service';
 import { v2 as cloudinary } from 'cloudinary';
-import { Readable } from 'stream';
 
 describe('Cloudinary Service Unit Tests', () => {
   beforeEach(() => {
@@ -33,7 +32,7 @@ describe('Cloudinary Service Unit Tests', () => {
     };
 
     // Mock upload_stream to return a writable stream that calls callback with fakeApiResponse
-    vi.spyOn(cloudinary.uploader, 'upload_stream').mockImplementation((options: any, callback: any) => {
+    vi.spyOn(cloudinary.uploader, 'upload_stream').mockImplementation((_options: any, callback?: any) => {
       const { Writable } = require('stream');
       const writable = new Writable({
         write(_chunk: any, _encoding: any, next: any) {

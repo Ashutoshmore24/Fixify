@@ -8,6 +8,7 @@ import {
   sendPasswordResetEmail,
   signInWithPopup,
   signOut as firebaseSignOut,
+  updatePassword,
   User as FirebaseUser,
 } from 'firebase/auth';
 
@@ -101,5 +102,6 @@ export {
   sendPasswordResetEmail,
   signInWithPopup,
   firebaseSignOut,
+  updatePassword,
 };
 export type { FirebaseUser };

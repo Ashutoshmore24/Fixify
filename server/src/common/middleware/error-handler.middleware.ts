@@ -41,6 +41,12 @@ export const errorHandler = (
     return;
   }
 
+  // 5. Multer File Upload Error (e.g. LIMIT_FILE_SIZE)
+  if (err.name === 'MulterError' || (err as { code?: unknown }).code === 'LIMIT_FILE_SIZE') {
+    sendError(res, 400, 'FILE_UPLOAD_ERROR', err.message);
+    return;
+  }
+
   // 5. Default Internal Server Error
   logger.error(err, 'Unhandled Server Error');
   sendError(

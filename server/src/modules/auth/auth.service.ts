@@ -7,9 +7,8 @@ import {
   ConflictError,
   NotFoundError,
 } from '../../common/errors/app-error';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { User, IUser, UserRole, ApprovalStatus } from './auth.model';
-import { Department } from '../departments/department.model';
 import { verifyFirebaseIdToken, setFirebaseTokenVerifier, TokenVerifier } from './firebase-admin';
 import { RegisterProfileInput } from './auth.schema';
 
@@ -233,7 +232,8 @@ export class AuthService {
         if (Types.ObjectId.isValid(data.department)) {
           user.department = new Types.ObjectId(data.department);
         } else {
-          const dept = await Department.findOne({
+          const DepartmentModel = mongoose.models.Department || mongoose.model('Department');
+          const dept = await DepartmentModel.findOne({
             $or: [
               { code: data.department.toUpperCase() },
               { name: data.department },

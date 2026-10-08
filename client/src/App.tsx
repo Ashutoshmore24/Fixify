@@ -18,6 +18,7 @@ const PendingApproval = lazy(() => import('./pages/PendingApproval'));
 const ReportComplaint = lazy(() => import('./pages/ReportComplaint'));
 const MyComplaints = lazy(() => import('./pages/MyComplaints'));
 const AssistantDashboard = lazy(() => import('./pages/AssistantDashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
 
 // Dev-only lazy loaded design system preview
 const DesignSystemPreview = import.meta.env.DEV
@@ -89,6 +90,16 @@ export const App: React.FC = () => {
                     element={
                       <ProtectedRoute allowedRoles={['LAB_ASSISTANT', 'ADMIN', 'DEPT_AUTHORITY', 'HOD']}>
                         <AssistantDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Protected Profile Route for all authenticated roles */}
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
                       </ProtectedRoute>
                     }
                   />

@@ -3,11 +3,13 @@ import { api } from '../lib/axios';
 import { Ticket } from '../types';
 import { useSocket } from '../context/SocketContext';
 import { TicketTimelineModal } from '../components/TicketTimelineModal';
+import { PublicProfileModal } from '../components/profile/PublicProfileModal';
 
 export const MyComplaints: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedAssistantId, setSelectedAssistantId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'RESOLVED'>('ALL');
 
   const { socket } = useSocket();
@@ -186,7 +188,23 @@ export const MyComplaints: React.FC = () => {
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-400">
                   <span>
-                    {t.assignedTo ? `Assigned to: ${t.assignedTo.name}` : 'Awaiting assignment'}
+                    {t.assignedTo ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedAssistantId(
+                            (t.assignedTo as any)?._id || (t.assignedTo as any)?.id
+                          );
+                        }}
+                        className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline flex items-center gap-1 focus:outline-none"
+                      >
+                        <span>Assigned to: <strong className="text-slate-700 dark:text-slate-200">{t.assignedTo.name}</strong></span>
+                        <span className="text-[10px] text-blue-500 font-normal">↗</span>
+                      </button>
+                    ) : (
+                      'Awaiting assignment'
+                    )}
                   </span>
                   <span className="text-blue-600 dark:text-blue-400 font-semibold group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
                     View Timeline →
@@ -197,6 +215,13 @@ export const MyComplaints: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Public Profile Modal */}
+      <PublicProfileModal
+        userId={selectedAssistantId}
+        isOpen={Boolean(selectedAssistantId)}
+        onClose={() => setSelectedAssistantId(null)}
+      />
     </div>
   );
 };

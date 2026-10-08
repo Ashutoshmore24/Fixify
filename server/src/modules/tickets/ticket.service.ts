@@ -340,8 +340,8 @@ export class TicketService {
       .populate('computer', 'label assetTag processor ram storage')
       .populate('lab', 'name code building')
       .populate('department', 'name code')
-      .populate('reportedBy', 'name email')
-      .populate('assignedTo', 'name email')
+      .populate('reportedBy', 'name email avatar picture role')
+      .populate('assignedTo', 'name email avatar picture role')
       .sort({ createdAt: -1 });
   }
 
@@ -353,8 +353,8 @@ export class TicketService {
       .populate('computer', 'label assetTag processor ram storage')
       .populate('lab', 'name code building assistants')
       .populate('department', 'name code')
-      .populate('reportedBy', 'name email')
-      .populate('assignedTo', 'name email');
+      .populate('reportedBy', 'name email avatar picture role')
+      .populate('assignedTo', 'name email avatar picture role');
 
     if (!ticket) {
       throw new NotFoundError(`Ticket not found`);

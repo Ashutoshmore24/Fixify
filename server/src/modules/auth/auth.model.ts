@@ -18,6 +18,16 @@ export interface IUser extends Document {
   name: string;
   email: string;
   picture?: string;
+  avatar?: {
+    url: string;
+    publicId: string;
+  };
+  banner?: {
+    url: string;
+    publicId: string;
+  };
+  phone?: string;
+  bio?: string;
   role: UserRole;
   department?: Types.ObjectId | null;
   assignedLabs: Types.ObjectId[];
@@ -68,6 +78,25 @@ const UserSchema = new Schema<IUser>(
     },
     picture: {
       type: String,
+      default: '',
+    },
+    avatar: {
+      url: { type: String, default: '' },
+      publicId: { type: String, default: '' },
+    },
+    banner: {
+      url: { type: String, default: '' },
+      publicId: { type: String, default: '' },
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 160,
       default: '',
     },
     role: {
