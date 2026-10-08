@@ -7,7 +7,9 @@ import {
   ConflictError,
   NotFoundError,
 } from '../../common/errors/app-error';
+import { Types } from 'mongoose';
 import { User, IUser, UserRole, ApprovalStatus } from './auth.model';
+import { Department } from '../departments/department.model';
 import { verifyFirebaseIdToken, setFirebaseTokenVerifier, TokenVerifier } from './firebase-admin';
 import { RegisterProfileInput } from './auth.schema';
 
@@ -191,12 +193,12 @@ export class AuthService {
     user.name = fullName;
 
     if (data.role === 'STUDENT') {
-      const prn = data.prn?.trim();
+      const prn = data.prn?.trim().toUpperCase();
       if (!prn) {
         throw new BadRequestError('PRN is required for student registration', 'MISSING_PRN');
       }
 
-      const prnRegex = new RegExp(env.PRN_REGEX);
+      const prnRegex = new RegExp(env.PRN_REGEX, 'i');
       if (!prnRegex.test(prn)) {
         throw new BadRequestError(
           `Invalid PRN format. PRN must match institutional pattern: ${env.PRN_REGEX}`,
@@ -226,6 +228,22 @@ export class AuthService {
     } else if (data.role === 'FACULTY') {
       user.role = 'FACULTY';
       user.employeeId = data.employeeId?.trim() || '';
+
+      if (data.department) {
+        if (Types.ObjectId.isValid(data.department)) {
+          user.department = new Types.ObjectId(data.department);
+        } else {
+          const dept = await Department.findOne({
+            $or: [
+              { code: data.department.toUpperCase() },
+              { name: data.department },
+            ],
+          });
+          if (dept) {
+            user.department = dept._id;
+          }
+        }
+      }
 
       // Check faculty domain rule from ASSUMPTIONS.md:
       // Auto-approved only if email matches faculty pattern, otherwise PENDING_APPROVAL

@@ -240,13 +240,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* DESKTOP COLLAPSIBLE SIDEBAR (Hidden on mobile / tablet < 1024px) */}
       {/* ============================================================ */}
       <aside
-        className={`hidden lg:flex flex-col border-r border-border bg-card/60 backdrop-blur-xs transition-all duration-200 select-none ${
+        className={`hidden lg:flex flex-col sticky top-0 h-screen shrink-0 border-r border-border bg-card/60 backdrop-blur-xs transition-all duration-200 select-none z-30 ${
           sidebarCollapsed ? 'w-20' : 'w-64'
         }`}
         aria-label="Sidebar Navigation"
       >
         {/* Brand Header */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-border/70">
+        <div className="h-16 px-4 flex items-center justify-between border-b border-border/70 shrink-0">
           <Link
             to="/"
             className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg p-1"
@@ -297,7 +297,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </nav>
 
         {/* Sidebar Footer: User Card & Collapse Toggle */}
-        <div className="p-3 border-t border-border/70 space-y-2">
+        <div className="p-3 border-t border-border/70 space-y-2 shrink-0">
           {/* User Preview */}
           <div
             className={`flex items-center gap-2.5 p-2 rounded-lg bg-muted/40 border border-border/50 ${

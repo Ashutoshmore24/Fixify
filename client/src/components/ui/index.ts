@@ -13,3 +13,5 @@ export * from './Tooltip';
 export * from './Avatar';
 export * from './Tabs';
 export * from './Table';
+export * from './CourseSelect';
+export * from './DepartmentSelect';
