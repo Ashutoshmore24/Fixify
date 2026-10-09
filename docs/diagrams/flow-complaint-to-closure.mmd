@@ -1,0 +1,62 @@
+flowchart TD
+  START(["1. Student / Faculty Scans Lab QR Placard"]):::startNode
+  AUTH_CHECK{"User Logged In?"}:::decisionNode
+  LOGIN["Authenticate via Firebase<br/>(Institutional Domain BR-10)"]:::processNode
+  SELECT_PC["Fetch Computers for Lab<br/>Select Affected Workstation"]:::processNode
+  SAFETY_CHECK{"Category = Electrical OR<br/>Safety Keyword Detected?"}:::decisionNode
+  HAZARD_ALERT["Display Hazard Warning Modal<br/>Set Priority = CRITICAL (REQ-1.9)"]:::dangerNode
+  STD_PRIORITY["PriorityEngine Sets Priority<br/>(LOW / MEDIUM / HIGH)"]:::processNode
+  SUBMIT_TICKET["Submit Complaint Form<br/>POST /api/v1/tickets"]:::processNode
+  BR3_CHECK{"Active Ticket Exists for PC?<br/>(BR-3 Partial Unique Index)"}:::decisionNode
+  REJECT_409["Reject Submission<br/>HTTP 409 Conflict"]:::dangerNode
+  GEN_ID["Generate Annual Ticket ID<br/>FIX-YYYY-000001 (Counter)"]:::processNode
+  BR4_CHECK{"Assistant Assigned to Lab?<br/>(BR-4 Assignment Engine)"}:::decisionNode
+  ASSIGN_LEAST["Assign Assistant with<br/>Least Active Tickets (ASSIGNED)"]:::processNode
+  SET_OPEN["Mark Status as OPEN<br/>(Unmanned Lab Alert)"]:::warnNode
+  NOTIF_DISPATCH["Emit Socket.IO Event<br/>Create In-App Notifications"]:::processNode
+  ASSIST_ACCEPT["Assistant Accepts Ticket<br/>Status -> ACCEPTED -> IN_PROGRESS"]:::processNode
+  SLA_CHECK{"SLA Timeout Breached?<br/>(Hourly Cron Worker BR-5)"}:::decisionNode
+  AUTO_ESCALATE["Auto-Escalate to Authority<br/>Status -> ESCALATED"]:::warnNode
+  REPAIR_FLOW{"Can Assistant Repair Workstation?"}:::decisionNode
+  PART_REQ["Request Spare Component<br/>Escalate for Approval (BR-6)"]:::warnNode
+  PERFORM_REPAIR["Perform Physical Repair<br/>Status -> RESOLVED"]:::processNode
+  BR8_CHECK{"Repair Complete AND<br/>testedOk=true AND Notes Non-Empty?"}:::decisionNode
+  PREVENT_CLOSE["Prevent Closure<br/>HTTP 400 Bad Request"]:::dangerNode
+  CLOSE_TICKET(["Ticket CLOSED (BR-8)<br/>isActive=false, Workstation Freed"]):::endNode
+
+  START --> AUTH_CHECK
+  AUTH_CHECK -- No --> LOGIN
+  LOGIN --> SELECT_PC
+  AUTH_CHECK -- Yes --> SELECT_PC
+  SELECT_PC --> SAFETY_CHECK
+  SAFETY_CHECK -- Yes --> HAZARD_ALERT
+  HAZARD_ALERT --> SUBMIT_TICKET
+  SAFETY_CHECK -- No --> STD_PRIORITY
+  STD_PRIORITY --> SUBMIT_TICKET
+  SUBMIT_TICKET --> BR3_CHECK
+  BR3_CHECK -- Yes --> REJECT_409
+  BR3_CHECK -- No --> GEN_ID
+  GEN_ID --> BR4_CHECK
+  BR4_CHECK -- Yes --> ASSIGN_LEAST
+  BR4_CHECK -- No --> SET_OPEN
+  ASSIGN_LEAST --> NOTIF_DISPATCH
+  SET_OPEN --> NOTIF_DISPATCH
+  NOTIF_DISPATCH --> ASSIST_ACCEPT
+  ASSIST_ACCEPT --> SLA_CHECK
+  SLA_CHECK -- Yes --> AUTO_ESCALATE
+  SLA_CHECK -- No --> REPAIR_FLOW
+  REPAIR_FLOW -- No --> PART_REQ
+  REPAIR_FLOW -- Yes --> PERFORM_REPAIR
+  AUTO_ESCALATE --> PERFORM_REPAIR
+  PART_REQ --> PERFORM_REPAIR
+  PERFORM_REPAIR --> BR8_CHECK
+  BR8_CHECK -- No --> PREVENT_CLOSE
+  PREVENT_CLOSE --> PERFORM_REPAIR
+  BR8_CHECK -- Yes --> CLOSE_TICKET
+
+  classDef startNode fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
+  classDef endNode fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
+  classDef processNode fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#ffffff
+  classDef decisionNode fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#ffffff
+  classDef dangerNode fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#ffffff
+  classDef warnNode fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#ffffff

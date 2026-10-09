@@ -1,0 +1,80 @@
+flowchart LR
+  subgraph ROLES["System Roles"]
+    R_STU["STUDENT"]:::roleNode
+    R_FAC["FACULTY"]:::roleNode
+    R_AST["LAB_ASSISTANT"]:::roleNode
+    R_AUTH["DEPT_AUTHORITY"]:::roleNode
+    R_HOD["HOD"]:::roleNode
+    R_ADM["ADMIN"]:::roleNode
+  end
+
+  subgraph FEAT_PUBLIC["Public & Onboarding"]
+    P_AUTH["/login, /signup<br/>Firebase Auth, Email Verification"]:::featNode
+    P_PROF["/complete-profile<br/>PRN & Academic Info"]:::featNode
+  end
+
+  subgraph FEAT_REPORT["Reporting & Personal Tracking"]
+    F_REP["/report?lab=:labCode<br/>QR Fault Submission"]:::featNode
+    F_MY["/my-complaints<br/>Personal Ticket Tracking"]:::featNode
+    F_PRF["/profile<br/>Self Profile & Avatars"]:::featNode
+  end
+
+  subgraph FEAT_ASSISTANT["Assistant Operations"]
+    F_AST_DASH["/assistant<br/>Scoped Lab Workbench"]:::featNode
+    F_TKT_MGMT["Accept, Start, Notes<br/>and Verified Close (BR-8)"]:::featNode
+    F_ESC_MAN["Manual Escalation<br/>with Justification"]:::featNode
+  end
+
+  subgraph FEAT_AUTHORITY["Department Leadership"]
+    F_DEPT_ESC["Escalations Queue<br/>Review SLA Breaches"]:::featNode
+    F_DEPT_VIEW["Department Computers<br/>& Labs Inspection"]:::featNode
+  end
+
+  subgraph FEAT_ADMIN["System Governance (ADMIN Strictly)"]
+    F_ADM_DASH["/admin<br/>System KPI Metrics"]:::featNode
+    F_ADM_USR["/admin/users<br/>Roles & Faculty Approvals"]:::featNode
+    F_ADM_DEPT["/admin/departments<br/>Department CRUD"]:::featNode
+    F_ADM_LAB["/admin/labs<br/>Lab Codes & Vector PDFs"]:::featNode
+    F_ADM_PC["/admin/computers<br/>Hardware & Bulk CSV Import"]:::featNode
+    F_ADM_SET["/admin/settings<br/>SLA & Stock Config"]:::featNode
+    F_ADM_AUD["/admin/audit<br/>Immutable Audit Explorer"]:::featNode
+  end
+
+  R_STU --> P_AUTH
+  R_STU --> P_PROF
+  R_STU --> F_REP
+  R_STU --> F_MY
+  R_STU --> F_PRF
+
+  R_FAC --> P_AUTH
+  R_FAC --> F_REP
+  R_FAC --> F_MY
+  R_FAC --> F_PRF
+
+  R_AST --> P_AUTH
+  R_AST --> F_REP
+  R_AST --> F_AST_DASH
+  R_AST --> F_TKT_MGMT
+  R_AST --> F_ESC_MAN
+  R_AST --> F_PRF
+
+  R_AUTH --> P_AUTH
+  R_AUTH --> F_DEPT_ESC
+  R_AUTH --> F_DEPT_VIEW
+  R_AUTH --> F_PRF
+
+  R_HOD --> P_AUTH
+  R_HOD --> F_DEPT_VIEW
+  R_HOD --> F_PRF
+
+  R_ADM --> P_AUTH
+  R_ADM --> F_ADM_DASH
+  R_ADM --> F_ADM_USR
+  R_ADM --> F_ADM_DEPT
+  R_ADM --> F_ADM_LAB
+  R_ADM --> F_ADM_PC
+  R_ADM --> F_ADM_SET
+  R_ADM --> F_ADM_AUD
+
+  classDef roleNode fill:#1e293b,stroke:#0f172a,stroke-width:2px,color:#ffffff
+  classDef featNode fill:#2563eb,stroke:#1d4ed8,stroke-width:1.5px,color:#ffffff

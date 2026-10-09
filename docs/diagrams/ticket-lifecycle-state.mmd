@@ -1,0 +1,47 @@
+stateDiagram-v2
+  [*] --> OPEN: Reported on unmanned lab [Student/Faculty]
+  [*] --> ASSIGNED: Auto-assigned via BR-4 [System]
+
+  OPEN --> ASSIGNED: Admin assigns assistant [Admin]
+  OPEN --> ESCALATED: Unassigned SLA exceeded [Cron BR-5]
+  OPEN --> CANCELLED: Student cancels [Student]
+  OPEN --> REJECTED: Invalid complaint [Admin/Assistant]
+
+  ASSIGNED --> ACCEPTED: Assistant acknowledges [Assistant]
+  ASSIGNED --> ESCALATED: Unacknowledged SLA exceeded [Cron BR-5]
+  ASSIGNED --> CANCELLED: Student cancels [Student]
+  ASSIGNED --> REJECTED: Invalid complaint [Assistant]
+
+  ACCEPTED --> IN_PROGRESS: Work started [Assistant]
+  ACCEPTED --> ESCALATED: Bottleneck escalated [Assistant]
+  ACCEPTED --> CANCELLED: Student cancels [Student]
+
+  IN_PROGRESS --> ESCALATED: Part request or bottleneck [Assistant]
+  IN_PROGRESS --> RESOLVED: Repair completed [Assistant]
+  IN_PROGRESS --> CLOSED: Direct verified closure [Assistant BR-8]
+  IN_PROGRESS --> CANCELLED: Student cancels [Student]
+
+  ESCALATED --> AWAITING_PARTS: Authority approves part [Authority BR-6]
+  ESCALATED --> IN_PROGRESS: Authority rejects part / reassigns [Authority]
+  ESCALATED --> RESOLVED: Authority resolves [Authority]
+  ESCALATED --> CLOSED: Authority closes [Authority BR-8]
+
+  AWAITING_PARTS --> IN_PROGRESS: Part installed & inventory decremented [Assistant BR-7]
+
+  RESOLVED --> CLOSED: Testing verified & closed [Assistant/Authority BR-8]
+  RESOLVED --> IN_PROGRESS: Verification failed / reopened [Assistant]
+
+  CLOSED --> [*]
+  REJECTED --> [*]
+  CANCELLED --> [*]
+
+  note right of OPEN
+    ACTIVE STATES (isActive = true)
+    Protected by BR-3 Unique Partial Index
+    Workstation blocked from duplicate reports
+  end note
+
+  note right of CLOSED
+    TERMINAL STATES (isActive = false)
+    Workstation freed for subsequent reports
+  end note
