@@ -1,0 +1,52 @@
+flowchart TB
+  subgraph USERS["Institutional Stakeholders"]
+    STU["Student"]
+    FAC["Faculty"]
+    AST["Lab Assistant"]
+    AUTH["Department Authority"]
+    HOD["Head of Department"]
+    ADM["System Administrator"]
+  end
+
+  subgraph CLIENT_LAYER["Client Single Page Application"]
+    SPA["React 18 SPA (Vite + TypeScript)<br/>Tailwind CSS & Radix UI"]
+    SIO_CLIENT["Socket.IO Client<br/>(Real-Time Listener)"]
+  end
+
+  subgraph API_GATEWAY["Express API Modular Monolith"]
+    EXPRESS["Express Server (Node.js 20)<br/>REST Endpoints (/api/v1)"]
+    AUTH_MW["Security Pipeline<br/>(CORS, CSRF, Rate Limiter, Auth Cookie)"]
+    SIO_SERVER["Socket.IO Server<br/>(Room-Based Event Emitter)"]
+    CRON["Node-Cron Engine<br/>(Hourly Ticket Escalation SLA)"]
+  end
+
+  subgraph STORAGE_PERSISTENCE["Primary Database"]
+    MONGO[("MongoDB Database<br/>Replica Set (ACID Transactions)")]
+  end
+
+  subgraph CLOUD_SERVICES["External Cloud Infrastructure"]
+    FIREBASE["Firebase Authentication<br/>(Email/Password & Google Sign-In)"]
+    CLOUDINARY["Cloudinary Media CDN<br/>(Diagnostic Photos & User Avatars)"]
+    SMTP["Campus SMTP Relay<br/>(Nodemailer Notifications)"]
+  end
+
+  STU -->|Scans QR / Reports Fault| SPA
+  FAC -->|Reports Classroom Issues| SPA
+  AST -->|Workbench / Resolves Tickets| SPA
+  AUTH -->|Oversees Escalations| SPA
+  HOD -->|Inspects Department Health| SPA
+  ADM -->|Full System Governance| SPA
+
+  SPA -->|HTTPS REST + CSRF Header| AUTH_MW
+  AUTH_MW --> EXPRESS
+  SPA <-->|Authenticated WebSockets| SIO_SERVER
+  SIO_CLIENT -.->|In-App Alerts| SPA
+
+  EXPRESS -->|Mongoose Queries & Transactions| MONGO
+  CRON -->|Hourly SLA Scan & Escalation| MONGO
+  CRON -->|Emits Escalation Alerts| SIO_SERVER
+
+  SPA -->|Authenticates Credentials| FIREBASE
+  EXPRESS -->|Verifies ID Token (Admin SDK)| FIREBASE
+  EXPRESS -->|Uploads Diagnostic Images| CLOUDINARY
+  EXPRESS -.->|Sends Notification Emails| SMTP

@@ -1,0 +1,63 @@
+sequenceDiagram
+  autonumber
+  actor User as User (Browser)
+  participant Client as React Client (SPA)
+  participant Firebase as Firebase Authentication
+  participant Server as Express Server (/api/v1/auth)
+  participant DB as MongoDB (User Collection)
+
+  %% Phase 1: Client Authentication with Firebase
+  User->>Client: Enter Email/Password or click Google Sign-In
+  Client->>Firebase: createUserWithEmailAndPassword() or signInWithPopup()
+  Firebase-->>Client: Returns Firebase User Credential
+  
+  opt Email/Password Registration
+    Firebase->>User: Dispatches Email Verification Link
+    User->>Firebase: Clicks Verification Link in Email
+  end
+
+  Client->>Firebase: user.getIdToken()
+  Firebase-->>Client: Returns Cryptographic Firebase ID Token
+
+  %% Phase 2: Token Exchange & Institutional Validation
+  Client->>Server: POST /api/v1/auth/session { idToken }
+  Server->>Firebase: firebaseAdmin.auth().verifyIdToken(idToken, checkRevoked: true)
+  Firebase-->>Server: Returns Decoded Token (email, email_verified, uid)
+
+  alt email_verified is False
+    Server-->>Client: HTTP 403 Forbidden (EMAIL_NOT_VERIFIED)
+  else Domain Not in ALLOWED_EMAIL_DOMAINS (BR-10)
+    Server-->>Client: HTTP 403 Forbidden (UNAUTHORIZED_DOMAIN)
+  else Valid Institutional Account
+    Server->>DB: User.findOne({ email })
+    alt User Does Not Exist in MongoDB
+      Server->>DB: User.create() (Role: ADMIN if ADMIN_EMAIL, else STUDENT/FACULTY)
+      DB-->>Server: User record provisioned
+    else Existing User
+      Server->>DB: Validate user.isActive && user.tokenVersion
+      DB-->>Server: User record active
+    end
+
+    Server->>Server: Generate JWT (sessionStartedAt, tokenVersion, role)
+    Server-->>Client: HTTP 200 OK + Set-Cookie: fixify_token (httpOnly, Secure, SameSite=Lax, 15m)
+  end
+
+  %% Phase 3: Profile Completion Gate
+  opt Profile Incomplete (profileComplete === false)
+    Client->>Server: GET /api/v1/tickets (Authenticated Request)
+    Server-->>Client: HTTP 403 Forbidden (PROFILE_INCOMPLETE)
+    Client->>User: Redirects to /complete-profile
+    User->>Client: Enters PRN/EmployeeID, Course, Year, Division
+    Client->>Server: POST /api/v1/auth/register-profile { prn, course, ... }
+    Server->>DB: Updates User (profileComplete = true)
+    Server-->>Client: HTTP 200 OK + Profile Completed
+  end
+
+  %% Phase 4: Sliding Session Management
+  Note over User, DB: Subsequent Authenticated Requests
+  Client->>Server: GET /api/v1/tickets (Cookie: fixify_token, Header: X-Requested-With)
+  Server->>Server: authenticate middleware checks JWT signature & 8h max ceiling
+  Server->>DB: User.findById(id) (verifies tokenVersion matches)
+  DB-->>Server: tokenVersion valid
+  Server->>Server: Slide session (refreshes fixify_token cookie with new 15m expiry)
+  Server-->>Client: HTTP 200 OK + Refreshed Cookie + Data

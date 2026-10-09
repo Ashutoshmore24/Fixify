@@ -1,0 +1,123 @@
+erDiagram
+  USER {
+    ObjectId _id PK
+    string firebaseUid UK
+    string email UK
+    string name
+    string role
+    ObjectId department FK
+    string prn UK
+    string employeeId
+    boolean profileComplete
+    string approvalStatus
+    boolean isActive
+    int tokenVersion
+  }
+
+  DEPARTMENT {
+    ObjectId _id PK
+    string code UK
+    string name
+    ObjectId hod FK
+    boolean isActive
+    date deletedAt
+  }
+
+  LABORATORY {
+    ObjectId _id PK
+    string code UK
+    string labCode UK
+    string name
+    string building
+    ObjectId department FK
+    boolean isActive
+    date deletedAt
+  }
+
+  COMPUTER {
+    ObjectId _id PK
+    string assetTag UK
+    ObjectId lab FK
+    string label
+    string processor
+    string ram
+    string storage
+    date warrantyExpiry
+    string status
+    boolean isActive
+    date deletedAt
+  }
+
+  TICKET {
+    ObjectId _id PK
+    string ticketId UK
+    ObjectId computer FK
+    ObjectId lab FK
+    ObjectId department FK
+    ObjectId reportedBy FK
+    ObjectId assignedTo FK
+    string category
+    string priority
+    string status
+    boolean isActive
+    boolean testedOk
+    date closedAt
+  }
+
+  NOTIFICATION {
+    ObjectId _id PK
+    ObjectId user FK
+    string title
+    string message
+    string type
+    boolean read
+    string ticketId
+  }
+
+  AUDIT_LOG {
+    ObjectId _id PK
+    ObjectId actor FK
+    string action
+    string entityType
+    string entityId
+    string ip
+    date at
+  }
+
+  SETTING {
+    ObjectId _id PK
+    string key UK
+    string description
+    ObjectId updatedBy FK
+  }
+
+  DEACTIVATION_REQUEST {
+    ObjectId _id PK
+    ObjectId user FK
+    string reason
+    string status
+    ObjectId reviewedBy FK
+    date reviewedAt
+  }
+
+  COUNTER {
+    ObjectId _id PK
+    string key UK
+    int seq
+  }
+
+  DEPARTMENT ||--o{ LABORATORY : "houses"
+  DEPARTMENT ||--o| USER : "headed by (hod)"
+  DEPARTMENT ||--o{ USER : "authorized by"
+  LABORATORY ||--o{ COMPUTER : "contains"
+  LABORATORY ||--o{ USER : "staffed by (assistants)"
+  COMPUTER ||--o{ TICKET : "subject of"
+  LABORATORY ||--o{ TICKET : "located in"
+  DEPARTMENT ||--o{ TICKET : "governed by"
+  USER ||--o{ TICKET : "reported by"
+  USER ||--o{ TICKET : "assigned to"
+  USER ||--o{ NOTIFICATION : "receives"
+  USER ||--o{ AUDIT_LOG : "triggers"
+  USER ||--o{ DEACTIVATION_REQUEST : "submits"
+  USER ||--o{ DEACTIVATION_REQUEST : "reviews"
+  USER ||--o{ SETTING : "configures"

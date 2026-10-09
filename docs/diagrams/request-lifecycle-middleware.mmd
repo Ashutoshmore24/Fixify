@@ -1,0 +1,47 @@
+flowchart TD
+  REQ(["Incoming HTTP Request"]):::startNode
+  HELMET["1. helmet()<br/>Security Headers & COOP Popup"]:::mwNode
+  CORS["2. cors()<br/>Allowlist against CLIENT_URL with credentials"]:::mwNode
+  BODY["3. express.json() & cookieParser()<br/>Parses payload & fixify_token cookie"]:::mwNode
+  OPT_AUTH["4. optionalAuth<br/>Extracts user ID for rate limiting"]:::mwNode
+  RATE_LIMIT["5. campusRateLimiter<br/>Keyed by userId or Shared Campus NAT IP"]:::mwNode
+  CSRF["6. csrfProtection<br/>Requires X-Requested-With for state methods"]:::mwNode
+  AUTH["7. authenticate<br/>JWT verify, 8h ceiling check, slide 15m session"]:::mwNode
+  TOKEN_VER{"Token Version &<br/>Active Check?"}:::decisionNode
+  REVOKED["HTTP 401 Unauthorized<br/>SESSION_REVOKED"]:::errNode
+  RBAC["8. requireRole()<br/>Enforces Role-Based Access Control"]:::mwNode
+  VALIDATE["9. validateRequest()<br/>Zod Schema Parsing (body, query, params)"]:::mwNode
+  CONTROLLER["10. Controller Execution<br/>Extracts params & delegates to Service"]:::coreNode
+  SERVICE["11. Domain Service & Model<br/>Executes business rules & DB queries"]:::coreNode
+  AUDIT["12. AuditService.logEvent()<br/>Appends immutable record (BR-9)"]:::coreNode
+  RESPONSE(["13. sendSuccess()<br/>Envelope { success: true, data }"]):::endNode
+  ERROR_HANDLER["Global errorHandler<br/>Envelope { success: false, error }"]:::errNode
+
+  REQ --> HELMET
+  HELMET --> CORS
+  CORS --> BODY
+  BODY --> OPT_AUTH
+  OPT_AUTH --> RATE_LIMIT
+  RATE_LIMIT --> CSRF
+  CSRF --> AUTH
+  AUTH --> TOKEN_VER
+  TOKEN_VER -- Mismatch / Inactive --> REVOKED
+  TOKEN_VER -- Valid --> RBAC
+  RBAC --> VALIDATE
+  VALIDATE --> CONTROLLER
+  CONTROLLER --> SERVICE
+  SERVICE --> AUDIT
+  AUDIT --> RESPONSE
+
+  VALIDATE -.->|Zod Error| ERROR_HANDLER
+  AUTH -.->|Invalid JWT| ERROR_HANDLER
+  RBAC -.->|Forbidden| ERROR_HANDLER
+  SERVICE -.->|AppError (409, 404, etc.)| ERROR_HANDLER
+  ERROR_HANDLER --> REQ_ERR(["Error Response"]):::endNode
+
+  classDef startNode fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
+  classDef endNode fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
+  classDef mwNode fill:#2563eb,stroke:#1d4ed8,stroke-width:1.5px,color:#ffffff
+  classDef decisionNode fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#ffffff
+  classDef coreNode fill:#0284c7,stroke:#0369a1,stroke-width:1.5px,color:#ffffff
+  classDef errNode fill:#ef4444,stroke:#dc2626,stroke-width:1.5px,color:#ffffff

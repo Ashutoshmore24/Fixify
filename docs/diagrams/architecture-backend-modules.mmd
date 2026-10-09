@@ -1,0 +1,57 @@
+flowchart TB
+  subgraph LAYERING["Architectural Layering Model"]
+    ROUTES["HTTP Routes (*.routes.ts)"]
+    SCHEMA["Zod Schemas (*.schema.ts)"]
+    CONTROLLER["Controllers (*.controller.ts)"]
+    SERVICE["Domain Services (*.service.ts)"]
+    MODEL["Mongoose Models (*.model.ts)"]
+    
+    ROUTES --> SCHEMA
+    ROUTES --> CONTROLLER
+    CONTROLLER --> SERVICE
+    SERVICE --> MODEL
+  end
+
+  subgraph DECOUPLED_MODULES["Decoupled Modules (SRS 6.3 - Zero Domain Dependencies)"]
+    AUTH_MOD["modules/auth<br/>(Firebase Token Verify, JWT Sliding Sessions, RBAC)"]:::decoupledNode
+    QR_MOD["modules/qr<br/>(QR Code Generator, URL Parser, Vector PDF Placard)"]:::decoupledNode
+  end
+
+  subgraph DOMAIN_MODULES["Core Domain Modules (Modular Monolith)"]
+    TICKETS_MOD["modules/tickets<br/>(10-State FSM, Priority Engine, BR-1..BR-4)"]:::domainNode
+    COMP_MOD["modules/computers<br/>(Asset Tracking, Specs, Bulk CSV)"]:::domainNode
+    LAB_MOD["modules/laboratories<br/>(Lab CRUD, Assistant Bindings, labCode)"]:::domainNode
+    DEPT_MOD["modules/departments<br/>(Department CRUD, HOD & Authorities)"]:::domainNode
+    USERS_MOD["modules/users<br/>(User Listing & Role Assignment)"]:::domainNode
+    NOTIF_MOD["modules/notifications<br/>(In-App Alerts & Socket Broadcast)"]:::domainNode
+    AUDIT_MOD["modules/audit<br/>(Append-Only Immutability BR-9)"]:::domainNode
+    SETTINGS_MOD["modules/settings<br/>(SLA Hours & Low-Stock Thresholds)"]:::domainNode
+    PROFILE_MOD["modules/profile<br/>(Self Profile, Avatars, Deactivations)"]:::domainNode
+    ADMIN_MOD["modules/admin<br/>(System Aggregation & Governance)"]:::domainNode
+    UPLOAD_MOD["modules/upload<br/>(Multer Memory Storage & Cloudinary)"]:::domainNode
+    ESCALATE_MOD["modules/tickets/escalation.cron<br/>(Hourly Cron Worker BR-5)"]:::domainNode
+  end
+
+  ADMIN_MOD --> DEPT_MOD
+  ADMIN_MOD --> LAB_MOD
+  ADMIN_MOD --> COMP_MOD
+  ADMIN_MOD --> USERS_MOD
+  ADMIN_MOD --> SETTINGS_MOD
+  ADMIN_MOD --> AUDIT_MOD
+  ADMIN_MOD --> QR_MOD
+
+  TICKETS_MOD --> COMP_MOD
+  TICKETS_MOD --> LAB_MOD
+  TICKETS_MOD --> DEPT_MOD
+  TICKETS_MOD --> AUTH_MOD
+  TICKETS_MOD --> AUDIT_MOD
+  TICKETS_MOD --> NOTIF_MOD
+
+  COMP_MOD --> LAB_MOD
+  LAB_MOD --> DEPT_MOD
+  ESCALATE_MOD --> TICKETS_MOD
+  ESCALATE_MOD --> SETTINGS_MOD
+  PROFILE_MOD --> UPLOAD_MOD
+
+  classDef decoupledNode fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
+  classDef domainNode fill:#2563eb,stroke:#1d4ed8,stroke-width:1.5px,color:#ffffff

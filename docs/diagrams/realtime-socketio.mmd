@@ -1,0 +1,36 @@
+flowchart TB
+  subgraph HANDSHAKE["Socket.IO Authenticated Handshake"]
+    CONN["Client Connects to Socket Server<br/>(cookie fixify_token sent in handshake)"]
+    VERIFY{"Verify JWT &<br/>tokenVersion in DB?"}
+    ACCEPT["Handshake Accepted<br/>Socket bound to User ID & Role"]
+    REJECT["Handshake Rejected<br/>Authentication Error"]
+  end
+
+  subgraph ROOMS["Segregated Event Rooms"]
+    ROOM_USER["user:USER_ID<br/>Direct Personal Notifications"]
+    ROOM_LAB["lab:LAB_ID<br/>Laboratory Activity Channel"]
+    ROOM_DEPT["dept:DEPT_ID<br/>Department Broadcasts"]
+    ROOM_ROLE["role:USER_ROLE<br/>Role-Specific Alerts"]
+  end
+
+  subgraph EVENTS["Real-Time Event Triggers"]
+    E_CREATE["ticket:created<br/>Triggered on new complaint submission"]
+    E_UPDATE["ticket:updated<br/>Triggered on status transition / work notes"]
+    E_ESC["ticket:escalated<br/>Triggered by Cron SLA breach or Assistant"]
+    E_NOTIF["notification:new<br/>Triggered on new in-app notification"]
+  end
+
+  CONN --> VERIFY
+  VERIFY -- Valid --> ACCEPT
+  VERIFY -- Invalid --> REJECT
+
+  ACCEPT --> ROOM_USER
+  ACCEPT --> ROOM_LAB
+  ACCEPT --> ROOM_DEPT
+  ACCEPT --> ROOM_ROLE
+
+  E_CREATE -->|Broadcasted to| ROOM_LAB
+  E_UPDATE -->|Broadcasted to| ROOM_LAB
+  E_ESC -->|Broadcasted to| ROOM_LAB
+  E_ESC -->|Broadcasted to| ROOM_DEPT
+  E_NOTIF -->|Direct to Target| ROOM_USER

@@ -1,0 +1,49 @@
+sequenceDiagram
+  autonumber
+  actor Assistant as Lab Assistant
+  participant CronWorker as Node-Cron Worker (Hourly)
+  participant TicketAPI as Ticket API (/api/v1/tickets)
+  participant DB as MongoDB (Tickets/Audit/Notif)
+  participant SocketIO as Socket.IO Server
+  actor Authority as Department Authority
+
+  %% Scenario A: Automated Background SLA Escalation (Hourly Cron BR-5)
+  Note over CronWorker, DB: Track A: Automated Background SLA Escalation
+  CronWorker->>CronWorker: Scheduled trigger (0 * * * * - every hour)
+  CronWorker->>DB: Setting.findOne({ key: 'escalation_timeout_hours' })
+  DB-->>CronWorker: Returns threshold (default 24h)
+  CronWorker->>DB: Ticket.find({ status: { $in: ['OPEN', 'ASSIGNED'] }, isActive: true, createdAt <= cutoff })
+  DB-->>CronWorker: Returns overdue tickets array
+
+  loop For Each Overdue Ticket
+    CronWorker->>DB: Update status to ESCALATED, append timeline (actor: SYSTEM)
+    CronWorker->>DB: AuditLog.create({ action: 'TICKET_AUTO_ESCALATED' })
+    CronWorker->>DB: Notification.create({ type: 'WARNING', title: 'Ticket Auto-Escalated' })
+    CronWorker->>SocketIO: emitToLab(labId, 'ticket:escalated', ticket)
+    SocketIO-)Authority: Real-time escalation alert
+  end
+
+  %% Scenario B: Manual Assistant Escalation / Part Request
+  Note over Assistant, Authority: Track B: Manual Assistant Escalation / Part Request
+  Assistant->>TicketAPI: PATCH /api/v1/tickets/:id/status { nextStatus: 'ESCALATED', note: 'Hardware bottleneck: RAM replacement needed' }
+  TicketAPI->>DB: Verify assistant assigned to lab & transition allowed
+  TicketAPI->>DB: Update status to ESCALATED, append timeline
+  TicketAPI->>DB: AuditLog.create({ action: 'TICKET_STATUS_UPDATED' })
+  TicketAPI->>SocketIO: emitToLab(labId, 'ticket:escalated', ticket)
+  TicketAPI-->>Assistant: HTTP 200 OK (Ticket Escalated)
+
+  %% Scenario C: Department Authority Decision
+  Note over Authority, DB: Track C: Authority Review & Resolution
+  Authority->>TicketAPI: Inspects Escalated Ticket (Dept Scoped)
+  alt Authority Resolves / Closes with Verification (BR-8)
+    Authority->>TicketAPI: PATCH /api/v1/tickets/:id/status { nextStatus: 'CLOSED', testedOk: true, resolutionNotes: 'Replaced power supply unit and verified benchmark' }
+    TicketAPI->>DB: Validate testedOk === true && resolutionNotes non-empty
+    TicketAPI->>DB: Updates ticket: status = CLOSED, isActive = false, closedAt = now
+    TicketAPI->>DB: AuditLog.create({ action: 'TICKET_STATUS_UPDATED' })
+    TicketAPI->>SocketIO: emitToLab(labId, 'ticket:closed', ticket)
+    TicketAPI-->>Authority: HTTP 200 OK (Ticket Closed)
+  else Authority Reassigns / Returns to Work
+    Authority->>TicketAPI: PATCH /api/v1/tickets/:id/status { nextStatus: 'IN_PROGRESS', note: 'External technician scheduled' }
+    TicketAPI->>DB: Updates ticket: status = IN_PROGRESS
+    TicketAPI-->>Authority: HTTP 200 OK
+  end

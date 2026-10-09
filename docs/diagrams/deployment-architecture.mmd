@@ -1,0 +1,42 @@
+flowchart TB
+  subgraph LOCAL_DEV["Local Development Topology"]
+    direction TB
+    DEV_CLIENT["Vite Client SPA<br/>http://localhost:5173"]
+    DEV_SERVER["Express API Monolith<br/>http://localhost:5000"]
+    DEV_DB[("Local MongoDB 7.0<br/>Replica Set rs0 (127.0.0.1:27017)")]
+    DEV_STORAGE["Local File Storage<br/>server/public/uploads/"]
+
+    DEV_CLIENT <-->|CORS with Credentials<br/>httpOnly Session Cookie| DEV_SERVER
+    DEV_SERVER <-->|Mongoose Driver| DEV_DB
+    DEV_SERVER -->|Disk Fallback| DEV_STORAGE
+  end
+
+  subgraph PROD_ENV["Intended Institutional Production Topology"]
+    direction TB
+    subgraph EDGE["Campus Edge Ingress (fixify.pccoe.org)"]
+      SSL_TERM["TLS Termination (HTTPS)"]
+      REVERSE_PROXY{"Reverse Proxy / Router"}
+    end
+
+    subgraph COMPUTE["Production Compute Services"]
+      PROD_CLIENT["Frontend Client SPA Host<br/>Static CDN / Vercel / Nginx"]
+      PROD_SERVER["Express API Container Cluster<br/>Node.js 20 on Docker / Linux"]
+    end
+
+    subgraph MANAGED_CLOUD["Managed Cloud & Database Infrastructure"]
+      ATLAS_DB[("MongoDB Atlas M10+<br/>Multi-AZ Replica Set (ACID)")]
+      FIREBASE_AUTH["Firebase Authentication<br/>(Institutional Whitelisted Project)"]
+      CLOUDINARY_CDN["Cloudinary Media CDN<br/>(Optimized Asset Delivery)"]
+      CAMPUS_SMTP["Campus SMTP Gateway<br/>(Nodemailer Delivery)"]
+    end
+
+    SSL_TERM --> REVERSE_PROXY
+    REVERSE_PROXY -->|/* (Static Assets)| PROD_CLIENT
+    REVERSE_PROXY -->|/api/* (API Traffic)| PROD_SERVER
+
+    PROD_SERVER <-->|Same-Site Cookie (Domain=.pccoe.org)<br/>Secure + SameSite=Lax| PROD_CLIENT
+    PROD_SERVER <-->|TLS Encrypted DB Driver| ATLAS_DB
+    PROD_SERVER -->|Admin SDK Verification| FIREBASE_AUTH
+    PROD_SERVER -->|Secure API Key & Secret| CLOUDINARY_CDN
+    PROD_SERVER -.->|Port 587 TLS| CAMPUS_SMTP
+  end

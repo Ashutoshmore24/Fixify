@@ -1,0 +1,50 @@
+sequenceDiagram
+  autonumber
+  actor Reporter as Reporter (Browser)
+  participant Client as React Client (/report)
+  participant UploadAPI as Upload API (/api/v1/upload)
+  participant Cloudinary as Cloudinary Media Storage
+  participant TicketAPI as Ticket API (/api/v1/tickets)
+  participant DB as MongoDB (Tickets/Counter/Audit)
+  participant Assignment as Assignment Engine (BR-4)
+  participant SocketIO as Socket.IO Server
+  actor Assistant as Lab Assistant Client
+
+  %% 1. Media Upload
+  opt Photos Attached (Up to 3 images, max 5MB)
+    Reporter->>Client: Selects diagnostic photos
+    Client->>UploadAPI: POST /api/v1/upload/images (multipart/form-data)
+    UploadAPI->>UploadAPI: Multer validates MIME types & 5MB size limit
+    UploadAPI->>Cloudinary: Upload stream to Cloudinary CDN
+    Cloudinary-->>UploadAPI: Returns secure image URLs
+    UploadAPI-->>Client: Returns image URLs array
+  end
+
+  %% 2. Ticket Submission
+  Reporter->>Client: Clicks Submit Complaint
+  Client->>TicketAPI: POST /api/v1/tickets { computer, lab, category, description, images }<br/>(Headers: Cookie fixify_token, X-Requested-With: XMLHttpRequest)
+
+  %% 3. Invariant Validations
+  TicketAPI->>DB: Computer.findById(computer) (BR-2: PC belongs to lab)
+  TicketAPI->>DB: Ticket.findOne({ computer, isActive: true }) (BR-3: Active check)
+
+  alt Active Ticket Already Exists
+    TicketAPI-->>Client: HTTP 409 Conflict (BR-3 Invariant Violation)
+  else Workstation Available
+    TicketAPI->>TicketAPI: PriorityEngine.determinePriority() (Safety keywords -> CRITICAL)
+    TicketAPI->>DB: Counter.findOneAndUpdate({ key: 'ticket-2026' }) -> Increment seq
+    TicketAPI->>Assignment: AssignmentService.autoAssign(labId)
+    Assignment->>DB: Query active tickets for lab assistants
+    DB-->>Assignment: Assistant counts
+    Assignment-->>TicketAPI: Assistant with least active tickets (or OPEN if unmanned)
+    
+    TicketAPI->>DB: Ticket.create() (Annual ID: FIX-2026-000001, status: ASSIGNED)
+    TicketAPI->>DB: AuditLog.create() (BR-9: TICKET_CREATED)
+    TicketAPI->>DB: Notification.create() (In-App alert for assistant)
+    
+    TicketAPI->>SocketIO: emitToLab(labId, 'ticket:created', ticket)
+    SocketIO-)Assistant: Real-time event 'ticket:created'
+    
+    TicketAPI-->>Client: HTTP 201 Created { ticket }
+    Client->>Reporter: Renders success confirmation & redirects
+  end
