@@ -21,7 +21,7 @@ export interface ProfileFormProps {
   onSuccess?: (updated: User) => void;
   // For 'complete' mode
   redirectTarget?: string;
-  onCompleteSubmit?: (payload: any) => Promise<void>;
+  onCompleteSubmit?: (payload: Record<string, unknown>) => Promise<void>;
   isLoadingExternal?: boolean;
 }
 
@@ -163,7 +163,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     // 'edit' mode: call PATCH /profile/me
     try {
       setIsSubmitting(true);
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
@@ -526,7 +526,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
             </label>
             {user.assignedLabs && Array.isArray(user.assignedLabs) && user.assignedLabs.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {user.assignedLabs.map((lab: any) => (
+                {user.assignedLabs.map((lab) => (
                   <div
                     key={typeof lab === 'string' ? lab : lab._id}
                     className="px-3 py-1.5 rounded-xl bg-card border border-border text-xs font-semibold flex items-center gap-2 text-foreground shadow-xs"

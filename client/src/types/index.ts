@@ -31,6 +31,10 @@ export interface User {
   employeeId?: string;
   profileComplete?: boolean;
   approvalStatus?: ApprovalStatus;
+  isActive?: boolean;
+  lastLoginAt?: string | Date;
+  deletedAt?: string | Date | null;
+  ticketsCount?: number;
 }
 
 export interface PublicProfileCard {
@@ -44,31 +48,74 @@ export interface PublicProfileCard {
   assignedLabs?: Array<{ _id: string; name: string; code: string }>;
 }
 
+export interface Department {
+  _id: string;
+  name: string;
+  code: string;
+  hod?: User | null;
+  authorities?: User[];
+  isActive: boolean;
+  labsCount?: number;
+  usersCount?: number;
+}
+
 export interface Laboratory {
   _id: string;
   name: string;
   code: string;
+  labCode?: string;
   building: string;
   department: string | { _id: string; name: string; code: string };
   assistants: User[];
   isActive: boolean;
+  computersCount?: number;
+  activeTicketsCount?: number;
+  reportUrl?: string;
 }
 
 export interface Computer {
   _id: string;
   assetTag: string;
-  lab: string;
+  lab: string | Laboratory | { _id: string; name: string; code: string };
   label: string;
   processor: string;
   ram: string;
   storage: string;
-  status: 'OPERATIONAL' | 'UNDER_MAINTENANCE' | 'DECOMMISSIONED';
+  purchaseDate?: string | null;
+  warrantyExpiry?: string | null;
+  vendor?: string;
+  status: 'ACTIVE' | 'UNDER_MAINTENANCE' | 'RETIRED' | 'OPERATIONAL' | 'DECOMMISSIONED';
+  notes?: string;
+  installedComponents?: Array<{
+    type?: string;
+    name?: string;
+    serialNumber?: string;
+    installedAt?: string;
+  }>;
   isActive: boolean;
   activeTicket?: {
     _id: string;
     ticketId: string;
     status: string;
+    priority?: string;
   } | null;
+}
+
+export interface AuditLogItem {
+  _id: string;
+  actor?: {
+    _id: string;
+    name: string;
+    email: string;
+    role: UserRole;
+  } | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  before?: unknown;
+  after?: unknown;
+  ip?: string | null;
+  at: string;
 }
 
 export type TicketStatus =

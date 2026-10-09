@@ -98,3 +98,33 @@ This document records architectural decisions, institutional assumptions, deploy
 ### 8. Strict Environment Validation (Zod)
 - Environment variables are validated on server initialization using Zod.
 - Placeholders (e.g. `replace_with...`, default passwords, strings containing `secret`) are rejected in `production`.
+
+---
+
+## 3. Admin Module Architecture & Security Assumptions (Phase 3)
+
+### 1. Non-Guessable Secret Lab Codes (`labCode`)
+- Laboratories are assigned a 10-character URL-safe random string (`labCode`, using `nanoid(10)`) separate from their human-readable display code (e.g., `LAB-101`).
+- QR codes encode `${CLIENT_URL}/report?lab=<labCode>`. This prevents students or malicious parties from guessing sequential QR URLs or spamming reports across laboratories without being physically present or possessing the QR link.
+- Regenerating a `labCode` immediately renders previously printed physical QR placards invalid. The report page `/report?lab=...` resolves labs by `labCode` first, with graceful fallback to `code`.
+- A seed migration automatically assigns random `labCode` values to any legacy laboratory documents lacking them.
+
+### 2. Immediate Session Revocation on Role Changes & Deactivation
+- In a decoupled JWT + Firebase architecture, changing a user's role or deactivating their account must instantly terminate existing sessions without requiring a heavy distributed token blacklist cache.
+- Implemented via a dual mechanism:
+  1. `firebase-admin.auth().revokeRefreshTokens(firebaseUid)` revokes Firebase tokens.
+  2. `user.tokenVersion` is incremented in MongoDB, and the `authenticate` middleware verifies that the decoded JWT's `tokenVersion` matches the current `dbUser.tokenVersion`. Any mismatch immediately responds with HTTP 401 `SESSION_REVOKED`.
+
+### 3. Self-Demotion, Self-Deactivation, and Last-Admin Guards
+- An authenticated administrator is prohibited by server-side business guards from demoting their own role, deactivating their own account, or deleting themselves (`FORBIDDEN_SELF_MODIFICATION`).
+- The system checks the count of active administrators before any demotion or deactivation; if only one active `ADMIN` exists, changes that would strip admin privileges are strictly rejected (`CANNOT_DEMOTE_LAST_ADMIN`).
+
+### 4. Zero-Dependency PDF Placard Generation
+- To ensure portability across diverse server operating systems (Windows, Linux containers) without native C++ compilation bindings (e.g., canvas or node-gyp) or external command-line binaries, physical laboratory placards (A4 format) are rendered using a standards-compliant PDF 1.4 vector generator.
+- Both individual laboratory placards and multi-page concatenated placards ("Download All Labs") are supported natively.
+
+### 5. Two-Step Bulk Computer CSV Import
+- Admins importing computer batches upload a CSV file with up to 1,000 rows.
+- The server performs a non-destructive **dry-run preflight check**, returning an array of valid rows and invalid rows (annotated with row numbers and exact validation failure reasons such as duplicate asset tag or unknown laboratory).
+- The admin inspects the preview and confirms insertion, importing only validated rows in a single batch, accompanied by a single consolidated `AuditLog` entry.
+

@@ -3,6 +3,7 @@ import { createApp } from './app';
 import { env } from './common/config/env';
 import { connectDatabase, disconnectDatabase } from './common/database/connection';
 import { initSocketServer } from './common/socket/socket.server';
+import { initEscalationCron } from './modules/tickets/escalation.cron';
 import { logger } from './common/utils/logger';
 
 const startServer = async () => {
@@ -17,7 +18,10 @@ const startServer = async () => {
     // 3. Initialize Socket.IO Server
     initSocketServer(httpServer);
 
-    // 4. Start Listening
+    // 4. Initialize Escalation Cron Job
+    initEscalationCron();
+
+    // 5. Start Listening
     httpServer.listen(env.PORT, () => {
       logger.info(`Fixify Server running on ${env.SERVER_URL} [Environment: ${env.NODE_ENV}]`);
       logger.info(`Allowed institutional domains: [${env.allowedDomainsList.join(', ')}]`);

@@ -193,9 +193,9 @@ export const MyComplaints: React.FC = () => {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedAssistantId(
-                            (t.assignedTo as any)?._id || (t.assignedTo as any)?.id
-                          );
+                          if (t.assignedTo) {
+                            setSelectedAssistantId(t.assignedTo._id);
+                          }
                         }}
                         className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline flex items-center gap-1 focus:outline-none"
                       >
