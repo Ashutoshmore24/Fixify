@@ -1,9 +1,11 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
+import { nanoid } from 'nanoid';
 
 export interface ILaboratory extends Document {
   _id: Types.ObjectId;
   name: string;
   code: string;
+  labCode: string;
   building: string;
   department: Types.ObjectId;
   assistants: Types.ObjectId[];
@@ -27,6 +29,14 @@ const LaboratorySchema = new Schema<ILaboratory>(
       trim: true,
       uppercase: true,
       index: true,
+    },
+    labCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      index: true,
+      default: () => nanoid(10),
     },
     building: {
       type: String,

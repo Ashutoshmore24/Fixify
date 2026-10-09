@@ -17,6 +17,7 @@ export interface AuditQueryFilters {
   actor?: string;
   action?: string;
   entityType?: string;
+  entityId?: string;
   startDate?: Date;
   endDate?: Date;
   page?: number;
@@ -66,6 +67,9 @@ export class AuditService {
     }
     if (filters.entityType) {
       query.entityType = filters.entityType;
+    }
+    if (filters.entityId) {
+      query.entityId = filters.entityId;
     }
     if (filters.startDate || filters.endDate) {
       query.at = {};

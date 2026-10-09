@@ -39,6 +39,7 @@ export interface IUser extends Document {
   profileComplete: boolean;
   approvalStatus: ApprovalStatus;
   isActive: boolean;
+  tokenVersion?: number;
   lastLoginAt: Date;
   deletedAt?: Date | null;
   createdAt: Date;
@@ -159,6 +160,10 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
       index: true,
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
     },
     lastLoginAt: {
       type: Date,

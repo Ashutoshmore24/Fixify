@@ -171,3 +171,19 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFi
     throw new UnauthorizedError(error.message || 'Invalid or unverifiable authentication token.');
   }
 }
+
+/**
+ * Revokes Firebase refresh tokens for a user when role changes or account is deactivated.
+ */
+export async function revokeFirebaseUserSessions(uid: string): Promise<void> {
+  if (!uid) return;
+  try {
+    const app = getFirebaseAdminApp();
+    const auth = getAuth(app);
+    await auth.revokeRefreshTokens(uid);
+    logger.info({ uid }, 'Successfully revoked Firebase refresh tokens for user');
+  } catch (err) {
+    logger.warn({ err, uid }, 'Notice: Could not revoke Firebase refresh tokens (user may not exist in Firebase or offline mode)');
+  }
+}
+

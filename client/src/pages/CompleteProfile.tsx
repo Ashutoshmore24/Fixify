@@ -7,6 +7,7 @@ import {
   QrCode,
   ShieldCheck,
 } from 'lucide-react';
+import { User } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Button } from '../components/ui/Button';
@@ -26,11 +27,11 @@ export const CompleteProfile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const handleCompleteSubmit = async (payload: any) => {
+  const handleCompleteSubmit = async (payload: Record<string, unknown>) => {
     try {
       setIsLoading(true);
       setServerError(null);
-      const result = await registerProfile(payload);
+      const result = await registerProfile(payload as unknown as Parameters<typeof registerProfile>[0]);
       await refreshUser();
 
       if (result.isPendingApproval) {
@@ -147,7 +148,7 @@ export const CompleteProfile: React.FC = () => {
           {/* Reusable Institutional Profile Form */}
           <ProfileForm
             mode="complete"
-            user={user || ({} as any)}
+            user={user || ({} as User)}
             redirectTarget={redirectTarget}
             onCompleteSubmit={handleCompleteSubmit}
             isLoadingExternal={isLoading}

@@ -138,11 +138,11 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
               <span className="text-slate-600 dark:text-slate-400 font-medium">Assigned Assistant:</span>
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedAssistantId(
-                    (ticket.assignedTo as any)?._id || (ticket.assignedTo as any)?.id
-                  )
-                }
+                onClick={() => {
+                  if (ticket.assignedTo) {
+                    setSelectedAssistantId(ticket.assignedTo._id);
+                  }
+                }}
                 className="font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 focus:outline-none"
               >
                 <span>{ticket.assignedTo.name}</span>
@@ -226,10 +226,10 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
                   <div className="flex-1 space-y-0.5">
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-slate-900 dark:text-slate-100">
-                        {entry.actor.role === 'LAB_ASSISTANT' && (entry.actor as any).id ? (
+                        {entry.actor.role === 'LAB_ASSISTANT' && entry.actor.id ? (
                           <button
                             type="button"
-                            onClick={() => setSelectedAssistantId((entry.actor as any).id)}
+                            onClick={() => setSelectedAssistantId(entry.actor.id)}
                             className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 focus:outline-none"
                           >
                             <span>{entry.actor.name}</span>

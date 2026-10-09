@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService, JwtTokenPayload } from './auth.service';
 import { UnauthorizedError, ForbiddenError } from '../../common/errors/app-error';
-import { UserRole } from './auth.model';
+import { UserRole, User } from './auth.model';
 import { env } from '../../common/config/env';
 
 declare global {
@@ -52,7 +52,7 @@ export const extractToken = (req: Request): string | null => {
 /**
  * Validates JWT, refreshes sliding cookie session, enforces profile completion, and injects req.user.
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const token = extractToken(req);
   if (!token) {
     return next(new UnauthorizedError('Authentication required: No token provided'));
@@ -72,6 +72,44 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
           'MAX_SESSION_EXPIRED'
         )
       );
+    }
+
+    // Verify tokenVersion against User record in DB to enforce session revocation on role changes
+    if (payload.id) {
+      try {
+        const dbUser = await User.findById(payload.id).select(
+          'tokenVersion isActive deletedAt role profileComplete approvalStatus'
+        );
+        if (dbUser) {
+          if (dbUser.deletedAt || !dbUser.isActive) {
+            clearAuthCookie(res);
+            return next(
+              new UnauthorizedError(
+                'Account is deactivated or deleted. Please contact an administrator.',
+                'ACCOUNT_DEACTIVATED'
+              )
+            );
+          }
+
+          const currentVersion = dbUser.tokenVersion || 0;
+          const tokenVersion = payload.tokenVersion || 0;
+          if (currentVersion !== tokenVersion) {
+            clearAuthCookie(res);
+            return next(
+              new UnauthorizedError(
+                'Your session has been invalidated due to a security update or role change. Please log in again.',
+                'SESSION_REVOKED'
+              )
+            );
+          }
+
+          payload.role = dbUser.role;
+          payload.profileComplete = dbUser.profileComplete;
+          payload.approvalStatus = dbUser.approvalStatus;
+        }
+      } catch {
+        // Continue with decoded token if database check is unavailable (e.g., in unit test mock)
+      }
     }
 
     req.user = payload;

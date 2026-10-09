@@ -19,6 +19,7 @@ export interface JwtTokenPayload {
   name: string;
   profileComplete?: boolean;
   approvalStatus?: ApprovalStatus;
+  tokenVersion?: number;
   sessionStartedAt?: number;
 }
 
@@ -274,6 +275,7 @@ export class AuthService {
       name: user.name,
       profileComplete: user.profileComplete,
       approvalStatus: user.approvalStatus,
+      tokenVersion: user.tokenVersion || 0,
       sessionStartedAt: sessionStartedAt || Date.now(),
     };
 
@@ -293,6 +295,7 @@ export class AuthService {
       name: payload.name,
       profileComplete: payload.profileComplete,
       approvalStatus: payload.approvalStatus,
+      tokenVersion: payload.tokenVersion || 0,
       sessionStartedAt: payload.sessionStartedAt || Date.now(),
     };
     return jwt.sign(cleanPayload, env.JWT_SECRET, {

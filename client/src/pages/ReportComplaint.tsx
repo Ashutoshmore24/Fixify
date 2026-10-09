@@ -78,7 +78,11 @@ export const ReportComplaint: React.FC = () => {
           setAllLabs(labs);
 
           const matched =
-            labs.find((l) => l.code === labCodeFromQuery.toUpperCase()) || labs[0] || null;
+            labs.find(
+              (l) =>
+                (l.labCode && l.labCode === labCodeFromQuery) ||
+                l.code === labCodeFromQuery.toUpperCase()
+            ) || labs[0] || null;
           setCurrentLab(matched);
         }
       })

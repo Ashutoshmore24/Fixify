@@ -35,6 +35,13 @@ import {
   Sun,
   Moon,
   LucideIcon,
+  LayoutDashboard,
+  Users,
+  Building2,
+  FlaskConical,
+  Monitor,
+  Settings,
+  ScrollText,
 } from 'lucide-react';
 
 interface NavItem {
@@ -87,6 +94,20 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       title = 'Fixify | Pending Approval';
     } else if (path === '/design') {
       title = 'Fixify | Design System Preview';
+    } else if (path === '/admin') {
+      title = 'Fixify | Admin - Dashboard';
+    } else if (path.startsWith('/admin/users')) {
+      title = 'Fixify | Admin - Users';
+    } else if (path.startsWith('/admin/departments')) {
+      title = 'Fixify | Admin - Departments';
+    } else if (path.startsWith('/admin/labs')) {
+      title = 'Fixify | Admin - Laboratories';
+    } else if (path.startsWith('/admin/computers')) {
+      title = 'Fixify | Admin - Computers';
+    } else if (path.startsWith('/admin/settings')) {
+      title = 'Fixify | Admin - Settings';
+    } else if (path.startsWith('/admin/audit')) {
+      title = 'Fixify | Admin - Audit Log';
     }
     document.title = title;
   }, [location.pathname]);
@@ -169,7 +190,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       case 'ADMIN':
         items.push(
-          { label: 'Admin Work Orders', href: '/assistant', icon: Wrench, testId: 'nav-admin' },
+          { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, testId: 'nav-admin-dashboard' },
+          { label: 'Users', href: '/admin/users', icon: Users, testId: 'nav-admin-users' },
+          { label: 'Departments', href: '/admin/departments', icon: Building2, testId: 'nav-admin-departments' },
+          { label: 'Laboratories', href: '/admin/labs', icon: FlaskConical, testId: 'nav-admin-labs' },
+          { label: 'Computers', href: '/admin/computers', icon: Monitor, testId: 'nav-admin-computers' },
+          { label: 'Work Orders', href: '/assistant', icon: Wrench, testId: 'nav-assistant' },
+          { label: 'Settings', href: '/admin/settings', icon: Settings, testId: 'nav-admin-settings' },
+          { label: 'Audit Log', href: '/admin/audit', icon: ScrollText, testId: 'nav-admin-audit' },
           { label: 'Report Issue', href: '/report', icon: PlusCircle, testId: 'nav-report' },
           { label: 'My Complaints', href: '/my-complaints', icon: Clock, testId: 'nav-my-complaints' }
         );

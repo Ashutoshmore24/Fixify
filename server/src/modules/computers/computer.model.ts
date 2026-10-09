@@ -1,6 +1,18 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
-export type ComputerStatus = 'OPERATIONAL' | 'UNDER_MAINTENANCE' | 'DECOMMISSIONED';
+export type ComputerStatus =
+  | 'ACTIVE'
+  | 'UNDER_MAINTENANCE'
+  | 'RETIRED'
+  | 'OPERATIONAL'
+  | 'DECOMMISSIONED';
+
+export interface InstalledComponent {
+  type?: string;
+  name?: string;
+  serialNumber?: string;
+  installedAt?: Date;
+}
 
 export interface IComputer extends Document {
   _id: Types.ObjectId;
@@ -10,7 +22,12 @@ export interface IComputer extends Document {
   processor: string;
   ram: string;
   storage: string;
+  purchaseDate?: Date | null;
+  warrantyExpiry?: Date | null;
+  vendor?: string;
   status: ComputerStatus;
+  notes?: string;
+  installedComponents: InstalledComponent[];
   isActive: boolean;
   deletedAt?: Date | null;
   createdAt: Date;
@@ -50,12 +67,39 @@ const ComputerSchema = new Schema<IComputer>(
       type: String,
       default: '256 GB SSD',
     },
-    status: {
-      type: String,
-      enum: ['OPERATIONAL', 'UNDER_MAINTENANCE', 'DECOMMISSIONED'],
-      default: 'OPERATIONAL',
+    purchaseDate: {
+      type: Date,
+      default: null,
+    },
+    warrantyExpiry: {
+      type: Date,
+      default: null,
       index: true,
     },
+    vendor: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    status: {
+      type: String,
+      enum: ['ACTIVE', 'UNDER_MAINTENANCE', 'RETIRED', 'OPERATIONAL', 'DECOMMISSIONED'],
+      default: 'ACTIVE',
+      index: true,
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    installedComponents: [
+      {
+        type: { type: String, default: '' },
+        name: { type: String, default: '' },
+        serialNumber: { type: String, default: '' },
+        installedAt: { type: Date, default: Date.now },
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,
