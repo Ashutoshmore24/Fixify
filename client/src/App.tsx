@@ -40,11 +40,7 @@ const AdminLabs = lazy(() => import('./pages/admin/AdminLabs'));
 const AdminComputers = lazy(() => import('./pages/admin/AdminComputers'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminAudit = lazy(() => import('./pages/admin/AdminAudit'));
-
-// Dev-only lazy loaded design system preview
-const DesignSystemPreview = import.meta.env.DEV
-  ? lazy(() => import('./pages/DesignSystemPreview'))
-  : null;
+const ProvisionStaff = lazy(() => import('./pages/admin/ProvisionStaff'));
 
 const PageLoaderFallback: React.FC = () => (
   <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 animate-in fade-in-0 duration-200">
@@ -78,11 +74,6 @@ export const App: React.FC = () => {
                       <Route path="/verify-email" element={<VerifyEmail />} />
                       <Route path="/complete-profile" element={<CompleteProfile />} />
                       <Route path="/pending-approval" element={<PendingApproval />} />
-
-                      {/* Dev-only Design System Preview (excluded in production) */}
-                      {import.meta.env.DEV && DesignSystemPreview && (
-                        <Route path="/design" element={<DesignSystemPreview />} />
-                      )}
 
                       {/* Root Redirection */}
                       <Route path="/" element={<Navigate to="/report" replace />} />
@@ -180,6 +171,22 @@ export const App: React.FC = () => {
                         element={
                           <ProtectedRoute allowedRoles={['ADMIN']}>
                             <AdminAudit />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/provision-staff"
+                        element={
+                          <ProtectedRoute allowedRoles={['ADMIN']}>
+                            <ProvisionStaff />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/provision-staff"
+                        element={
+                          <ProtectedRoute allowedRoles={['ADMIN']}>
+                            <ProvisionStaff />
                           </ProtectedRoute>
                         }
                       />

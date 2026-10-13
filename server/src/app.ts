@@ -6,7 +6,7 @@ import { env } from './common/config/env';
 import { errorHandler } from './common/middleware/error-handler.middleware';
 import { csrfProtection } from './common/middleware/csrf.middleware';
 import { campusRateLimiter } from './common/middleware/rate-limit.middleware';
-import { optionalAuth } from './modules/auth/auth.middleware';
+import { optionalAuth, authenticate, requireRole } from './modules/auth/auth.middleware';
 import { authRoutes } from './modules/auth/auth.routes';
 import { qrRoutes } from './modules/qr/qr.routes';
 import { departmentRoutes } from './modules/departments/department.routes';
@@ -18,9 +18,13 @@ import { notificationRoutes } from './modules/notifications/notification.routes'
 import { uploadRoutes } from './modules/upload/upload.routes';
 import { profileRoutes } from './modules/profile/profile.routes';
 import { adminRoutes } from './modules/admin/admin.routes';
+import { AdminController } from './modules/admin/admin.controller';
+import { validateRequest } from './common/middleware/validate.middleware';
+import { provisionStaffSchema } from './modules/admin/admin.schema';
 import { sendSuccess } from './common/utils/api-response';
 import { NotFoundError } from './common/errors/app-error';
 import path from 'path';
+import fs from 'fs';
 
 export const createApp = (): Application => {
   const app = express();
@@ -100,8 +104,26 @@ export const createApp = (): Application => {
   app.use('/api/v1/profile', profileRoutes);
   app.use('/api/v1/admin', adminRoutes);
 
+  // Direct provision-staff endpoint: strictly authenticated and ADMIN-authorized
+  const directProvisionStaffRouter = express.Router();
+  directProvisionStaffRouter.use(authenticate);
+  directProvisionStaffRouter.use(requireRole(['ADMIN']));
+  directProvisionStaffRouter.get('/', AdminController.getStaffProvisioningData);
+  directProvisionStaffRouter.post(
+    '/',
+    validateRequest({ body: provisionStaffSchema }),
+    AdminController.provisionStaff
+  );
+  app.use('/api/v1/provision-staff', directProvisionStaffRouter);
+
   // Static uploads directory (local fallback)
   app.use('/uploads', express.static(path.resolve(__dirname, '../public/uploads')));
+
+  // Static laboratory map PNGs from root /labs folder
+  const rootLabsDir = fs.existsSync(path.resolve(__dirname, '../../labs'))
+    ? path.resolve(__dirname, '../../labs')
+    : path.resolve(process.cwd(), 'labs');
+  app.use('/labs', express.static(rootLabsDir));
 
   // 9. 404 Route Catch-all
   app.use((_req: Request, _res: Response, next) => {

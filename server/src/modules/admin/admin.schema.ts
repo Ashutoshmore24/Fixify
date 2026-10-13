@@ -73,6 +73,9 @@ export const updateDepartmentSchema = z.object({
 export const createLaboratorySchema = z.object({
   name: z.string().min(2, 'Lab name is required').trim(),
   code: z.string().min(2, 'Display code is required').trim().toUpperCase(),
+  roomNumber: z.string().trim().optional(),
+  mapImage: z.string().trim().optional(),
+  hasMap: z.boolean().optional(),
   building: z.string().min(2, 'Building / Room is required').trim(),
   department: z.string().min(1, 'Department is required'),
   assistants: z.array(z.string()).optional(),
@@ -82,6 +85,9 @@ export const createLaboratorySchema = z.object({
 export const updateLaboratorySchema = z.object({
   name: z.string().min(2).trim().optional(),
   code: z.string().min(2).trim().toUpperCase().optional(),
+  roomNumber: z.string().trim().optional(),
+  mapImage: z.string().trim().optional(),
+  hasMap: z.boolean().optional(),
   building: z.string().min(2).trim().optional(),
   department: z.string().optional(),
   assistants: z.array(z.string()).optional(),
@@ -184,3 +190,26 @@ export const auditLogQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
 });
+
+// 7. Staff Provisioning Schema (ADMIN ONLY)
+export const provisionStaffSchema = z.object({
+  name: z.string().min(2, 'Staff name is required').trim(),
+  email: z
+    .string()
+    .email('Valid institutional email is required')
+    .toLowerCase()
+    .trim(),
+  role: z.enum(['LAB_ASSISTANT', 'ADMIN'], {
+    errorMap: () => ({ message: 'Staff role must be either LAB_ASSISTANT or ADMIN' }),
+  }),
+  password: z
+    .string()
+    .min(6, 'Password must be at least 6 characters long')
+    .optional(),
+  department: z.string().optional().nullable(),
+  assignedLabs: z.array(z.string()).optional(),
+  title: z.string().optional(),
+});
+
+export type ProvisionStaffInput = z.infer<typeof provisionStaffSchema>;
+

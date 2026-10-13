@@ -74,6 +74,20 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       );
     }
 
+    // Determine if this is an auth management route that should be exempt from
+    // profile/approval checks and should not issue a sliding refresh cookie
+    // (because those endpoints issue their own cookie).
+    const url = req.originalUrl || req.baseUrl + req.path;
+    const isAuthOwnCookieRoute =
+      url.includes('/auth/register-profile') ||
+      url.includes('/auth/session') ||
+      url.includes('/auth/google') ||
+      url.includes('/auth/logout');
+
+    const isExemptAuthRoute =
+      isAuthOwnCookieRoute ||
+      url.includes('/auth/me');
+
     // Verify tokenVersion against User record in DB to enforce session revocation on role changes
     if (payload.id) {
       try {
@@ -81,7 +95,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
           'tokenVersion isActive deletedAt role profileComplete approvalStatus'
         );
         if (dbUser) {
-          if (dbUser.deletedAt || !dbUser.isActive) {
+          if (!isExemptAuthRoute && (dbUser.deletedAt || dbUser.isActive === false)) {
             clearAuthCookie(res);
             return next(
               new UnauthorizedError(
@@ -103,9 +117,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
             );
           }
 
-          payload.role = dbUser.role;
-          payload.profileComplete = dbUser.profileComplete;
-          payload.approvalStatus = dbUser.approvalStatus;
+          if (dbUser.role) payload.role = dbUser.role;
+          if (dbUser.profileComplete !== undefined) payload.profileComplete = dbUser.profileComplete;
+          if (dbUser.approvalStatus) payload.approvalStatus = dbUser.approvalStatus;
         }
       } catch {
         // Continue with decoded token if database check is unavailable (e.g., in unit test mock)
@@ -113,20 +127,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     }
 
     req.user = payload;
-
-    // Determine if this is an auth management route that should be exempt from
-    // profile/approval checks and should not issue a sliding refresh cookie
-    // (because those endpoints issue their own cookie).
-    const url = req.originalUrl || req.baseUrl + req.path;
-    const isAuthOwnCookieRoute =
-      url.includes('/auth/register-profile') ||
-      url.includes('/auth/session') ||
-      url.includes('/auth/google') ||
-      url.includes('/auth/logout');
-
-    const isExemptAuthRoute =
-      isAuthOwnCookieRoute ||
-      url.includes('/auth/me');
 
     // Refresh sliding session cookie with a refreshed token keeping the original
     // sessionStartedAt — but skip for routes that issue their own cookie.

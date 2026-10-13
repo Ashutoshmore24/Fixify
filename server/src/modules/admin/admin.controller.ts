@@ -401,4 +401,23 @@ export class AdminController {
       next(err);
     }
   }
+
+  // 8. Staff Provisioning (ADMIN ONLY)
+  public static async getStaffProvisioningData(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await AdminService.getStaffProvisioningData();
+      sendSuccess(res, data);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async provisionStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await AdminService.provisionStaff(req.user!.id, req.body, req.ip);
+      sendSuccess(res, result, 201);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

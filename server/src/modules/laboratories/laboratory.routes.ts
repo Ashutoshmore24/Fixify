@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticate);
 router.get('/', LaboratoryController.getAll);
 router.get('/by-code/:code', LaboratoryController.getByCode);
+router.get('/:id/map', LaboratoryController.getMap);
 router.get('/:id', LaboratoryController.getById);
 
 export const laboratoryRoutes = router;

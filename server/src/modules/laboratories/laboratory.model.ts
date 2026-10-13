@@ -10,6 +10,9 @@ export interface ILaboratory extends Document {
   department: Types.ObjectId;
   assistants: Types.ObjectId[];
   isActive: boolean;
+  roomNumber?: string;
+  mapImage?: string;
+  hasMap?: boolean;
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -29,6 +32,19 @@ const LaboratorySchema = new Schema<ILaboratory>(
       trim: true,
       uppercase: true,
       index: true,
+    },
+    roomNumber: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    mapImage: {
+      type: String,
+      trim: true,
+    },
+    hasMap: {
+      type: Boolean,
+      default: false,
     },
     labCode: {
       type: String,

@@ -6,8 +6,6 @@ import {
   Eye,
   EyeOff,
   ShieldAlert,
-  ChevronDown,
-  ChevronUp,
   QrCode,
   Activity,
   ShieldCheck,
@@ -26,7 +24,7 @@ import { getFriendlyAuthErrorMessage } from '../lib/firebase';
 export const Login: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { loginWithEmailPassword, loginWithGoogle, devLogin } = useAuth();
+  const { loginWithEmailPassword, loginWithGoogle } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
   // Form state
@@ -41,57 +39,42 @@ export const Login: React.FC = () => {
   // Forgot password modal state
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
-  // Developer access accordion: starts collapsed in dev, but defaults open under Playwright test runners
-  const isAutomatedTest =
-    typeof navigator !== 'undefined' && Boolean(navigator.webdriver);
-  const [devAccessOpen, setDevAccessOpen] = useState(isAutomatedTest);
-  const [loadingDevEmail, setLoadingDevEmail] = useState<string | null>(null);
+  // Raw requested redirect from URL query parameters (if any)
+  const requestedRedirect = searchParams.get('redirect');
 
-  // Preserve deep link
-  const redirectTarget = searchParams.get('redirect') || '/report';
+  // Helper: Safely resolves post-login destination URL
+  // - LAB_ASSISTANT, DEPT_AUTHORITY, HOD -> /assistant
+  // - ADMIN -> /admin
+  // - STUDENT, FACULTY -> /report
+  // - Preserves explicit internal deep links (e.g. /report?lab=LAB-5401, /my-complaints, /profile)
+  // - Guards against open-redirect vulnerabilities
+  const resolvePostLoginRedirect = (role?: UserRole, redirectParam?: string | null): string => {
+    const isSafeInternalPath =
+      typeof redirectParam === 'string' &&
+      redirectParam.startsWith('/') &&
+      !redirectParam.startsWith('//') &&
+      !redirectParam.includes('\\') &&
+      !redirectParam.split('?')[0].includes(':');
 
-  const seededAccounts = [
-    {
-      name: 'Rahul Deshmukh',
-      email: 'student@pccoe.org',
-      role: 'STUDENT' as UserRole,
-      badge: 'Student',
-      description: 'Report computer defects in assigned lab',
-      icon: '🎓',
-    },
-    {
-      name: 'Lab Assistant Sharma',
-      email: 'assistant@pccoe.org',
-      role: 'LAB_ASSISTANT' as UserRole,
-      badge: 'Lab Assistant',
-      description: 'Accept, service & close Lab 101 tickets',
-      icon: '🛠️',
-    },
-    {
-      name: 'Dept Authority Patil',
-      email: 'authority@pccoe.org',
-      role: 'DEPT_AUTHORITY' as UserRole,
-      badge: 'Dept Authority',
-      description: 'Component approvals & escalations',
-      icon: '🏛️',
-    },
-    {
-      name: 'HOD Computer Engg',
-      email: 'hod@pccoe.org',
-      role: 'HOD' as UserRole,
-      badge: 'HOD',
-      description: 'Departmental analytics & overview',
-      icon: '👨‍🏫',
-    },
-    {
-      name: 'System Administrator',
-      email: 'admin@pccoe.org',
-      role: 'ADMIN' as UserRole,
-      badge: 'Admin',
-      description: 'Full campus system control',
-      icon: '👑',
-    },
-  ];
+    // If an explicit destination was supplied that is NOT the generic default '/report'
+    if (isSafeInternalPath && redirectParam !== '/report') {
+      return redirectParam;
+    }
+
+    // Role-specific default destinations
+    switch (role) {
+      case 'LAB_ASSISTANT':
+      case 'DEPT_AUTHORITY':
+      case 'HOD':
+        return '/assistant';
+      case 'ADMIN':
+        return '/admin';
+      case 'STUDENT':
+      case 'FACULTY':
+      default:
+        return '/report';
+    }
+  };
 
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,13 +89,14 @@ export const Login: React.FC = () => {
       setUnverifiedEmail(null);
 
       const result = await loginWithEmailPassword(email.trim(), password);
+      const destination = resolvePostLoginRedirect(result.user?.role, searchParams.get('redirect'));
 
       if (result.requiresProfileCompletion) {
-        navigate(`/complete-profile?redirect=${encodeURIComponent(redirectTarget)}`, { replace: true });
+        navigate(`/complete-profile?redirect=${encodeURIComponent(destination)}`, { replace: true });
       } else if (result.isPendingApproval) {
-        navigate(`/pending-approval?redirect=${encodeURIComponent(redirectTarget)}`, { replace: true });
+        navigate(`/pending-approval?redirect=${encodeURIComponent(destination)}`, { replace: true });
       } else {
-        navigate(redirectTarget, { replace: true });
+        navigate(destination, { replace: true });
       }
     } catch (err: unknown) {
       const friendlyMsg = getFriendlyAuthErrorMessage(err);
@@ -137,33 +121,20 @@ export const Login: React.FC = () => {
       setUnverifiedEmail(null);
 
       const result = await loginWithGoogle();
+      const destination = resolvePostLoginRedirect(result.user?.role, searchParams.get('redirect'));
 
       if (result.requiresProfileCompletion) {
-        navigate(`/complete-profile?redirect=${encodeURIComponent(redirectTarget)}`, { replace: true });
+        navigate(`/complete-profile?redirect=${encodeURIComponent(destination)}`, { replace: true });
       } else if (result.isPendingApproval) {
-        navigate(`/pending-approval?redirect=${encodeURIComponent(redirectTarget)}`, { replace: true });
+        navigate(`/pending-approval?redirect=${encodeURIComponent(destination)}`, { replace: true });
       } else {
-        navigate(redirectTarget, { replace: true });
+        navigate(destination, { replace: true });
       }
     } catch (err: unknown) {
       const friendlyMsg = getFriendlyAuthErrorMessage(err);
       setErrorMessage(friendlyMsg);
     } finally {
       setIsGoogleLoading(false);
-    }
-  };
-
-  const handleImpersonate = async (targetEmail: string, role: UserRole) => {
-    try {
-      setLoadingDevEmail(targetEmail);
-      setErrorMessage(null);
-      await devLogin(targetEmail, role);
-      navigate(redirectTarget, { replace: true });
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      setErrorMessage(error.response?.data?.error?.message || 'Dev impersonation failed');
-    } finally {
-      setLoadingDevEmail(null);
     }
   };
 
@@ -271,9 +242,9 @@ export const Login: React.FC = () => {
             <p className="text-xs text-muted-foreground">
               Institutional IT Asset & Maintenance Management
             </p>
-            {redirectTarget !== '/report' && (
+            {requestedRedirect && requestedRedirect !== '/report' && (
               <div className="inline-block mt-2 px-3 py-1 bg-primary/10 border border-primary/20 text-primary rounded-full text-xs font-medium">
-                Redirecting to: {redirectTarget}
+                Redirecting to: {requestedRedirect}
               </div>
             )}
           </div>
@@ -290,7 +261,7 @@ export const Login: React.FC = () => {
                   <p>{errorMessage}</p>
                   {unverifiedEmail && (
                     <Link
-                      to={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}&redirect=${encodeURIComponent(redirectTarget)}`}
+                      to={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}${requestedRedirect ? `&redirect=${encodeURIComponent(requestedRedirect)}` : ''}`}
                       className="inline-block text-primary underline font-medium hover:underline"
                     >
                       Go to email verification page →
@@ -315,7 +286,7 @@ export const Login: React.FC = () => {
                 type="email"
                 name="email"
                 autoComplete="email"
-                placeholder="name.dept@pccoe.org"
+                placeholder="your email address"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -420,68 +391,14 @@ export const Login: React.FC = () => {
           <div className="text-center text-xs text-muted-foreground">
             New to Fixify?{' '}
             <Link
-              to={`/signup?redirect=${encodeURIComponent(redirectTarget)}`}
+              to={`/signup${requestedRedirect ? `?redirect=${encodeURIComponent(requestedRedirect)}` : ''}`}
               className="text-primary hover:underline font-semibold"
             >
               Create an account
             </Link>
           </div>
 
-          {/* Collapsed Developer Access section in development only */}
-          {import.meta.env.DEV && (
-            <div className="pt-3 border-t border-border space-y-3">
-              <button
-                type="button"
-                onClick={() => setDevAccessOpen((prev) => !prev)}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-muted/50 hover:bg-muted/80 border border-border text-left transition group"
-                aria-expanded={devAccessOpen}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground group-hover:text-primary transition">
-                    Developer Access
-                  </span>
-                  <span className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
-                    DEV MODE
-                  </span>
-                </div>
-                <div className="text-muted-foreground group-hover:text-foreground">
-                  {devAccessOpen ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </div>
-              </button>
 
-              {devAccessOpen && (
-                <div className="space-y-2 pt-1 animate-in fade-in-0 duration-150">
-                  {seededAccounts.map((account) => (
-                    <button
-                      key={account.email}
-                      disabled={loadingDevEmail !== null}
-                      onClick={() => handleImpersonate(account.email, account.role)}
-                      className="w-full text-left p-2.5 sm:p-3 rounded-xl bg-card hover:bg-muted/60 border border-border hover:border-primary/40 transition flex items-center justify-between group disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-2.5 sm:gap-3">
-                        <span className="text-lg sm:text-xl">{account.icon}</span>
-                        <div>
-                          <div className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition">
-                            {account.name}
-                          </div>
-                          <div className="text-[10px] sm:text-[11px] text-muted-foreground">
-                            {account.description}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border shrink-0">
-                        {account.badge}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* SRS 6.2 Institutional Privacy Notice */}
           <div className="pt-3 border-t border-border">

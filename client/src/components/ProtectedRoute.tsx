@@ -50,9 +50,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-xl flex items-center justify-center mx-auto text-xl font-bold mb-4">
             🚫
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Access Restricted</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100" data-testid="access-denied">
+            Access Denied
+          </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            Your role (<span className="font-semibold">{user.role}</span>) does not have authorization to access this area.
+            Access denied: Your account role (<span className="font-semibold">{user.role}</span>) does not have authorization to access this page.
           </p>
           <button
             onClick={() => window.history.back()}
