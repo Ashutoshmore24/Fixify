@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Ticket, TicketStatus } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Ticket, TicketStatus, LabMapData } from '../types';
 import { useSocket } from '../context/SocketContext';
 import { PublicProfileModal } from './profile/PublicProfileModal';
+import { LabInteractiveMap } from './LabInteractiveMap';
+import { api } from '../lib/axios';
 
 interface TicketTimelineModalProps {
   ticket: Ticket | null;
@@ -26,6 +28,19 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
   const { socket } = useSocket();
   const [selectedAssistantId, setSelectedAssistantId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [labMapData, setLabMapData] = useState<LabMapData | null>(null);
+
+  useEffect(() => {
+    if (!ticket?.lab?._id) return;
+    api
+      .get(`/laboratories/${ticket.lab._id}/map`)
+      .then((res) => {
+        if (res.data?.success) {
+          setLabMapData(res.data.data);
+        }
+      })
+      .catch(() => {});
+  }, [ticket?.lab?._id]);
 
   useEffect(() => {
     if (!ticket || !socket) return;
@@ -60,7 +75,7 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
       aria-labelledby="ticket-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
     >
-      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700">
           <div>
@@ -162,6 +177,23 @@ export const TicketTimelineModal: React.FC<TicketTimelineModalProps> = ({
             <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
               {ticket.description}
             </p>
+          </div>
+
+          {/* Workstation Location Map (Identifies exact reported PC on top-view layout) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Workstation Location Map
+              </h4>
+              <span className="text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400">
+                {ticket.computer?.label} ({ticket.computer?.assetTag})
+              </span>
+            </div>
+            <LabInteractiveMap
+              mapData={labMapData}
+              highlightComputerId={ticket.computer?._id}
+              readOnly={true}
+            />
           </div>
 
           {/* Supporting Evidence Images from Cloudinary */}

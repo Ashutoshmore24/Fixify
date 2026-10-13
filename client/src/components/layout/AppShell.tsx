@@ -22,6 +22,7 @@ import {
   Clock,
   Wrench,
   ShieldAlert,
+  ShieldCheck,
   BarChart3,
   Sparkles,
   Bell,
@@ -29,9 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  UserCheck,
   User as UserIcon,
-  Check,
   Sun,
   Moon,
   LucideIcon,
@@ -52,7 +51,7 @@ interface NavItem {
 }
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout, devLogin } = useAuth();
+  const { user, logout } = useAuth();
   const { socket } = useSocket();
   const location = useLocation();
   const { isDark, toggleTheme } = useTheme();
@@ -108,6 +107,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       title = 'Fixify | Admin - Settings';
     } else if (path.startsWith('/admin/audit')) {
       title = 'Fixify | Admin - Audit Log';
+    } else if (path.startsWith('/admin/provision-staff') || path.startsWith('/provision-staff')) {
+      title = 'Fixify | Admin - Staff Provisioning';
     }
     document.title = title;
   }, [location.pathname]);
@@ -192,6 +193,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         items.push(
           { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, testId: 'nav-admin-dashboard' },
           { label: 'Users', href: '/admin/users', icon: Users, testId: 'nav-admin-users' },
+          { label: 'Staff Provisioning', href: '/admin/provision-staff', icon: ShieldCheck, testId: 'nav-admin-provision-staff' },
           { label: 'Departments', href: '/admin/departments', icon: Building2, testId: 'nav-admin-departments' },
           { label: 'Laboratories', href: '/admin/labs', icon: FlaskConical, testId: 'nav-admin-labs' },
           { label: 'Computers', href: '/admin/computers', icon: Monitor, testId: 'nav-admin-computers' },
@@ -576,96 +578,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     </Link>
                   </div>
 
-                  {/* Dev Fast Impersonation (VISIBLE ONLY IN DEVELOPMENT) */}
-                  {import.meta.env.DEV && (
-                    <div className="p-2 border-b border-border/70 mb-1">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
-                        <UserCheck className="h-3 w-3 text-primary" strokeWidth={1.75} />
-                        Fast Role Switch (Dev)
-                      </p>
-                      <div className="grid grid-cols-2 gap-1 text-[11px]">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await devLogin('student@pccoe.org', 'STUDENT');
-                            setShowUserDropdown(false);
-                          }}
-                          className={`p-1.5 rounded-md text-left transition-colors flex items-center justify-between ${
-                            user.role === 'STUDENT'
-                              ? 'bg-primary/10 text-primary font-semibold'
-                              : 'hover:bg-muted/70 text-foreground'
-                          }`}
-                        >
-                          <span>🎓 Student</span>
-                          {user.role === 'STUDENT' && <Check className="h-3 w-3" />}
-                        </button>
 
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await devLogin('assistant@pccoe.org', 'LAB_ASSISTANT');
-                            setShowUserDropdown(false);
-                          }}
-                          className={`p-1.5 rounded-md text-left transition-colors flex items-center justify-between ${
-                            user.role === 'LAB_ASSISTANT'
-                              ? 'bg-primary/10 text-primary font-semibold'
-                              : 'hover:bg-muted/70 text-foreground'
-                          }`}
-                        >
-                          <span>🛠️ Assistant</span>
-                          {user.role === 'LAB_ASSISTANT' && <Check className="h-3 w-3" />}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await devLogin('authority@pccoe.org', 'DEPT_AUTHORITY');
-                            setShowUserDropdown(false);
-                          }}
-                          className={`p-1.5 rounded-md text-left transition-colors flex items-center justify-between ${
-                            user.role === 'DEPT_AUTHORITY'
-                              ? 'bg-primary/10 text-primary font-semibold'
-                              : 'hover:bg-muted/70 text-foreground'
-                          }`}
-                        >
-                          <span>🏛️ Authority</span>
-                          {user.role === 'DEPT_AUTHORITY' && <Check className="h-3 w-3" />}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await devLogin('hod@pccoe.org', 'HOD');
-                            setShowUserDropdown(false);
-                          }}
-                          className={`p-1.5 rounded-md text-left transition-colors flex items-center justify-between ${
-                            user.role === 'HOD'
-                              ? 'bg-primary/10 text-primary font-semibold'
-                              : 'hover:bg-muted/70 text-foreground'
-                          }`}
-                        >
-                          <span>📊 HOD</span>
-                          {user.role === 'HOD' && <Check className="h-3 w-3" />}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await devLogin('admin@pccoe.org', 'ADMIN');
-                            setShowUserDropdown(false);
-                          }}
-                          className={`col-span-2 p-1.5 rounded-md text-left transition-colors flex items-center justify-between ${
-                            user.role === 'ADMIN'
-                              ? 'bg-primary/10 text-primary font-semibold'
-                              : 'hover:bg-muted/70 text-foreground'
-                          }`}
-                        >
-                          <span>👑 Admin</span>
-                          {user.role === 'ADMIN' && <Check className="h-3 w-3" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Logout Action */}
                   <button
@@ -743,56 +656,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 </div>
               </Link>
 
-              {/* Dev Fast Switcher inside Mobile Drawer */}
-              {import.meta.env.DEV && (
-                <div className="pt-2 border-t border-border/40">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    Role Switcher
-                  </p>
-                  <div className="grid grid-cols-2 gap-1 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await devLogin('student@pccoe.org', 'STUDENT');
-                        setMobileDrawerOpen(false);
-                      }}
-                      className="p-1.5 rounded-md bg-card border border-border/60 text-left truncate"
-                    >
-                      🎓 Student
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await devLogin('assistant@pccoe.org', 'LAB_ASSISTANT');
-                        setMobileDrawerOpen(false);
-                      }}
-                      className="p-1.5 rounded-md bg-card border border-border/60 text-left truncate"
-                    >
-                      🛠️ Assistant
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await devLogin('authority@pccoe.org', 'DEPT_AUTHORITY');
-                        setMobileDrawerOpen(false);
-                      }}
-                      className="p-1.5 rounded-md bg-card border border-border/60 text-left truncate"
-                    >
-                      🏛️ Authority
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await devLogin('hod@pccoe.org', 'HOD');
-                        setMobileDrawerOpen(false);
-                      }}
-                      className="p-1.5 rounded-md bg-card border border-border/60 text-left truncate"
-                    >
-                      📊 HOD
-                    </button>
-                  </div>
-                </div>
-              )}
+
 
               <Button
                 variant="outline"

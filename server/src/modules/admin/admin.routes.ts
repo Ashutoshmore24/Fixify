@@ -19,6 +19,7 @@ import {
   bulkCsvImportConfirmSchema,
   updateSettingsSchema,
   auditLogQuerySchema,
+  provisionStaffSchema,
 } from './admin.schema';
 
 const router = Router();
@@ -146,4 +147,13 @@ router.get(
   AdminController.getAuditLogs
 );
 
+// 8. Staff Provisioning (ADMIN ONLY)
+router.get('/provision-staff', AdminController.getStaffProvisioningData);
+router.post(
+  '/provision-staff',
+  validateRequest({ body: provisionStaffSchema }),
+  AdminController.provisionStaff
+);
+
 export const adminRoutes = router;
+

@@ -177,3 +177,35 @@ export interface NotificationItem {
   ticketId?: string | null;
   createdAt: string;
 }
+
+export interface HotspotItem {
+  hotspotId: string;
+  pcIndex: number;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  label?: string;
+  computer?: Computer | null;
+}
+
+export interface LabMapData {
+  hasMap: boolean;
+  roomNumber: string;
+  code: string;
+  roomName: string;
+  reason?: string;
+  imageFileName?: string;
+  imagePath?: string;
+  dimensions?: { width: number; height: number };
+  totalWorkstations?: number;
+  lab: {
+    _id: string;
+    name: string;
+    code: string;
+    building: string;
+    assistants?: User[];
+  };
+  hotspots?: HotspotItem[];
+  computers: Computer[];
+}

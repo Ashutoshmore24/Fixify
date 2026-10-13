@@ -30,4 +30,13 @@ export class LaboratoryController {
       next(error);
     }
   }
+
+  static async getMap(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const mapData = await LaboratoryService.getMap(req.params.id as string);
+      sendSuccess(res, mapData);
+    } catch (error) {
+      next(error);
+    }
+  }
 }

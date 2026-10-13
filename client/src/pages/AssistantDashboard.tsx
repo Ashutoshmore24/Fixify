@@ -343,7 +343,14 @@ export const AssistantDashboard: React.FC = () => {
 
                   <button
                     onClick={() => setSelectedTimelineTicket(t)}
-                    className="py-1.5 px-3 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 text-xs font-medium transition ml-auto"
+                    className="py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition ml-auto flex items-center gap-1.5"
+                  >
+                    <span>📍</span> View on Map
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedTimelineTicket(t)}
+                    className="py-1.5 px-3 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 text-xs font-medium transition"
                   >
                     Timeline & History →
                   </button>

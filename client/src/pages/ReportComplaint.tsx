@@ -6,13 +6,13 @@ import {
   Check,
   MapPin,
   AlertTriangle,
-  ArrowRight,
   Search,
 } from 'lucide-react';
 import { api } from '../lib/axios';
-import { Computer, Laboratory, TicketCategory } from '../types';
+import { Computer, Laboratory, TicketCategory, LabMapData } from '../types';
 import { ElectricalSafetyModal } from '../components/ElectricalSafetyModal';
 import { ImageUploader } from '../features/complaints/ImageUploader';
+import { LabInteractiveMap } from '../components/LabInteractiveMap';
 import { Badge } from '../components/ui/Badge';
 import {
   Dialog,
@@ -39,10 +39,11 @@ export const ReportComplaint: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const labCodeFromQuery = searchParams.get('lab') || 'LAB-101';
+  const labCodeFromQuery = searchParams.get('lab') || 'LAB-5401';
 
   const [allLabs, setAllLabs] = useState<Laboratory[]>([]);
   const [currentLab, setCurrentLab] = useState<Laboratory | null>(null);
+  const [labMapData, setLabMapData] = useState<LabMapData | null>(null);
   const [computers, setComputers] = useState<Computer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -77,11 +78,14 @@ export const ReportComplaint: React.FC = () => {
           const labs: Laboratory[] = res.data.data;
           setAllLabs(labs);
 
+          const cleanQuery = labCodeFromQuery.toUpperCase().replace(/^LAB-/, '');
           const matched =
             labs.find(
               (l) =>
                 (l.labCode && l.labCode === labCodeFromQuery) ||
-                l.code === labCodeFromQuery.toUpperCase()
+                l.code === labCodeFromQuery.toUpperCase() ||
+                l.code.replace(/^LAB-/, '') === cleanQuery ||
+                (l as any).roomNumber === cleanQuery
             ) || labs[0] || null;
           setCurrentLab(matched);
         }
@@ -96,18 +100,37 @@ export const ReportComplaint: React.FC = () => {
       });
   }, [labCodeFromQuery]);
 
-  // Fetch computers for the current lab
+  // Fetch interactive map layout & computers for the current lab
   useEffect(() => {
     if (!currentLab) return;
+    setLabMapData(null);
 
     api
-      .get(`/computers?lab=${currentLab._id}`)
+      .get(`/laboratories/${currentLab._id}/map`)
       .then((res) => {
         if (res.data?.success) {
-          setComputers(res.data.data);
+          setLabMapData(res.data.data);
+          setComputers(res.data.data.computers || []);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        api
+          .get(`/computers?lab=${currentLab._id}`)
+          .then((res) => {
+            if (res.data?.success) {
+              setComputers(res.data.data);
+              setLabMapData({
+                hasMap: false,
+                roomNumber: currentLab.code.replace(/^LAB-/, ''),
+                code: currentLab.code,
+                roomName: currentLab.name,
+                lab: currentLab,
+                computers: res.data.data,
+              });
+            }
+          })
+          .catch(() => {});
+      });
   }, [currentLab]);
 
   // Check description and category for safety keywords
@@ -141,11 +164,6 @@ export const ReportComplaint: React.FC = () => {
   const selectedComputer = useMemo(
     () => computers.find((c) => c._id === selectedComputerId),
     [computers, selectedComputerId]
-  );
-
-  const availableCount = useMemo(
-    () => computers.filter((c) => !c.activeTicket).length,
-    [computers]
   );
 
   const priorityHint = useMemo(() => {
@@ -415,35 +433,25 @@ export const ReportComplaint: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Lab switcher: Dropdown in dev, text link in production */}
-                {import.meta.env.DEV ? (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 font-mono px-1.5 py-0.5 rounded">DEV</span>
-                    <select
-                      value={currentLab?.code || ''}
-                      onChange={(e) => {
-                        const selectedCode = e.target.value;
-                        setSearchParams({ lab: selectedCode });
-                        setSelectedComputerId('');
-                      }}
-                      className="text-xs bg-muted border border-border rounded-lg py-1 px-2 font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {allLabs.map((l) => (
-                        <option key={l.code} value={l.code}>
-                          {l.code}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setLabPickerOpen(true)}
-                    className="text-xs text-primary hover:underline font-medium"
+                {/* Laboratory Selector */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={currentLab?.code || ''}
+                    onChange={(e) => {
+                      const selectedCode = e.target.value;
+                      setSearchParams({ lab: selectedCode });
+                      setSelectedComputerId('');
+                    }}
+                    aria-label="Select Laboratory"
+                    className="text-xs bg-muted/80 hover:bg-muted border border-border rounded-xl py-1.5 px-3 font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer transition shadow-2xs"
                   >
-                    Wrong lab?
-                  </button>
-                )}
+                    {allLabs.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name} ({l.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -459,82 +467,33 @@ export const ReportComplaint: React.FC = () => {
               </div>
             </div>
 
-            {/* PC Workstation Grid */}
+            {/* Step 1: Interactive Laboratory Map (BookMyShow-style layout) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
                     1
                   </span>
-                  Pick Affected Workstation
+                  Select Faulty Workstation
                 </h2>
-                <span className="text-xs text-muted-foreground">
-                  <strong className="text-foreground">{availableCount}</strong> Available / {computers.length} Total
-                </span>
+                {selectedComputer ? (
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Workstation Selected
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Click faulty PC on layout map
+                  </span>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
-                {computers.map((pc) => {
-                  const isBusy = Boolean(pc.activeTicket);
-                  const isSelected = selectedComputerId === pc._id;
-
-                  return (
-                    <div
-                      key={pc._id}
-                      data-testid={`pc-card-${pc.label}`}
-                      onClick={() => {
-                        if (!isBusy) {
-                          setSelectedComputerId(pc._id);
-                        }
-                      }}
-                      className={`relative p-3 rounded-2xl border text-left transition select-none ${
-                        isBusy
-                          ? 'bg-amber-500/10 border-amber-500/40 text-amber-950 dark:text-amber-100 cursor-not-allowed opacity-90'
-                          : isSelected
-                          ? 'bg-primary/10 border-primary ring-2 ring-primary/20 shadow-soft cursor-pointer'
-                          : 'bg-card border-border hover:border-primary/50 hover:bg-muted/40 cursor-pointer shadow-2xs'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-bold text-sm text-foreground truncate">
-                          {pc.label}
-                        </span>
-                        {isBusy ? (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500 text-white uppercase tracking-wider">
-                            Busy
-                          </span>
-                        ) : (
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              isSelected ? 'bg-primary' : 'bg-emerald-500'
-                            }`}
-                          />
-                        )}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
-                        {pc.assetTag}
-                      </p>
-
-                      {/* Busy PC Link to Active Ticket */}
-                      {isBusy && pc.activeTicket && (
-                        <div className="mt-2 pt-1 border-t border-amber-500/30">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate('/my-complaints');
-                            }}
-                            className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 group"
-                          >
-                            <span>Active ticket {pc.activeTicket.ticketId}</span>
-                            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Top-View Visual Layout Map Component */}
+              <LabInteractiveMap
+                mapData={labMapData}
+                selectedComputerId={selectedComputerId}
+                onSelectComputer={(pc) => setSelectedComputerId(pc._id)}
+              />
             </div>
           </div>
 
@@ -635,8 +594,8 @@ export const ReportComplaint: React.FC = () => {
               <div className="pt-3 border-t border-border/70 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Workstation:</span>
-                  <span className="font-semibold text-foreground">
-                    {selectedComputer ? `${selectedComputer.label} (${selectedComputer.assetTag})` : 'None selected'}
+                  <span className={`font-semibold ${selectedComputer ? 'text-primary' : 'text-amber-600 dark:text-amber-400'}`}>
+                    {selectedComputer ? 'Faulty PC Selected on Layout ✓' : 'Click a PC on room layout'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -668,7 +627,7 @@ export const ReportComplaint: React.FC = () => {
         <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-card/95 backdrop-blur-md border-t border-border z-30 shadow-lg">
           <div className="max-w-md mx-auto space-y-2">
             <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
-              <span>{selectedComputer ? `PC: ${selectedComputer.label}` : 'Select a PC'} • {category}</span>
+              <span>{selectedComputer ? 'Faulty PC Selected ✓' : 'Select a PC on map'} • {category}</span>
               <span className={category === 'ELECTRICAL' ? 'text-destructive font-bold' : 'text-primary'}>
                 {priorityHint}
               </span>

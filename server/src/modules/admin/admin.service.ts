@@ -9,7 +9,9 @@ import { DeactivationRequest } from '../profile/deactivation-request.model';
 import { AuditService, AuditQueryFilters } from '../audit/audit.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationService } from '../notifications/notification.service';
-import { revokeFirebaseUserSessions } from '../auth/firebase-admin';
+import { revokeFirebaseUserSessions, createOrUpdateFirebaseUser } from '../auth/firebase-admin';
+import { AuthService } from '../auth/auth.service';
+import { ProvisionStaffInput } from './admin.schema';
 import { QrService } from '../qr/qr.service';
 import { generatePlacardsPdf, PlacardLabInfo } from '../qr/pdf.generator';
 import { env } from '../../common/config/env';
@@ -824,6 +826,9 @@ export class AdminService {
     data: {
       name: string;
       code: string;
+      roomNumber?: string;
+      mapImage?: string;
+      hasMap?: boolean;
       building: string;
       department: string;
       assistants?: string[];
@@ -842,6 +847,9 @@ export class AdminService {
     const lab = await Laboratory.create({
       name: data.name,
       code: data.code.toUpperCase(),
+      roomNumber: data.roomNumber,
+      mapImage: data.mapImage,
+      hasMap: data.hasMap !== undefined ? data.hasMap : false,
       labCode: randomLabCode,
       building: data.building,
       department: new Types.ObjectId(data.department),
@@ -875,6 +883,9 @@ export class AdminService {
     data: {
       name?: string;
       code?: string;
+      roomNumber?: string;
+      mapImage?: string;
+      hasMap?: boolean;
       building?: string;
       department?: string;
       assistants?: string[];
@@ -902,6 +913,9 @@ export class AdminService {
     const previousAssistants = lab.assistants.map((a) => a.toString());
 
     if (data.name) lab.name = data.name;
+    if (data.roomNumber !== undefined) lab.roomNumber = data.roomNumber;
+    if (data.mapImage !== undefined) lab.mapImage = data.mapImage;
+    if (data.hasMap !== undefined) lab.hasMap = data.hasMap;
     if (data.building) lab.building = data.building;
     if (data.department) lab.department = new Types.ObjectId(data.department);
     if (data.isActive !== undefined) lab.isActive = data.isActive;
@@ -1606,5 +1620,171 @@ export class AdminService {
   // =========================================================================
   public static async getAuditLogs(filters: AuditQueryFilters) {
     return AuditService.queryLogs(filters);
+  }
+
+  // =========================================================================
+  // 8. STAFF PROVISIONING (ADMIN ONLY)
+  // =========================================================================
+  public static async getStaffProvisioningData() {
+    const [staffUsers, laboratories, departments] = await Promise.all([
+      User.find({
+        role: { $in: ['LAB_ASSISTANT', 'ADMIN'] },
+        deletedAt: null,
+      })
+        .populate('department', 'name code')
+        .populate('assignedLabs', 'name code roomNumber building')
+        .sort({ role: 1, name: 1 })
+        .lean(),
+      Laboratory.find({ deletedAt: null, isActive: true })
+        .populate('assistants', 'name email role')
+        .sort({ roomNumber: 1, code: 1 })
+        .lean(),
+      Department.find({ deletedAt: null, isActive: true })
+        .sort({ name: 1 })
+        .lean(),
+    ]);
+
+    return {
+      staff: staffUsers,
+      laboratories,
+      departments,
+    };
+  }
+
+  public static async provisionStaff(
+    actorId: string,
+    input: ProvisionStaffInput,
+    ip?: string
+  ) {
+    const email = input.email.toLowerCase().trim();
+
+    // 1. Role validation - only privileged staff roles
+    if (input.role !== 'LAB_ASSISTANT' && input.role !== 'ADMIN') {
+      throw new BadRequestError('Only LAB_ASSISTANT and ADMIN accounts can be provisioned through this interface');
+    }
+
+    // 2. Domain check
+    if (!AuthService.isDomainAllowed(email)) {
+      throw new BadRequestError(`Institutional account required. Domain is not authorized.`);
+    }
+
+    // 3. Find existing user
+    let user = await User.findOne({ email });
+
+    // 4. Privileged Firebase Auth provisioning (server-side only)
+    const firebaseUid = await createOrUpdateFirebaseUser({
+      email,
+      password: input.password,
+      displayName: input.name,
+      emailVerified: true,
+    });
+
+    let beforeSnapshot: unknown = null;
+
+    if (user) {
+      beforeSnapshot = {
+        role: user.role,
+        name: user.name,
+        department: user.department,
+        assignedLabs: user.assignedLabs,
+      };
+
+      // Guard: Cannot demote the last remaining admin
+      if (user.role === 'ADMIN' && input.role !== 'ADMIN') {
+        const adminCount = await User.countDocuments({
+          role: 'ADMIN',
+          isActive: true,
+          deletedAt: null,
+        });
+        if (adminCount <= 1) {
+          throw new BadRequestError('Cannot demote the last remaining Administrator');
+        }
+      }
+
+      user.name = input.name;
+      user.role = input.role;
+      user.firebaseUid = firebaseUid;
+      user.approvalStatus = 'APPROVED';
+      user.profileComplete = true;
+      user.isActive = true;
+
+      if (input.department && Types.ObjectId.isValid(input.department)) {
+        user.department = new Types.ObjectId(input.department);
+      }
+
+      await user.save();
+    } else {
+      let deptId: Types.ObjectId | null = null;
+      if (input.department && Types.ObjectId.isValid(input.department)) {
+        deptId = new Types.ObjectId(input.department);
+      } else {
+        const compDept = await Department.findOne({ code: 'COMP' });
+        if (compDept) deptId = compDept._id;
+      }
+
+      user = await User.create({
+        name: input.name,
+        email,
+        role: input.role,
+        department: deptId,
+        firebaseUid,
+        approvalStatus: 'APPROVED',
+        profileComplete: true,
+        isActive: true,
+        assignedLabs: [],
+      });
+    }
+
+    // 5. Sync assigned laboratories if specified
+    if (input.assignedLabs !== undefined) {
+      const validLabObjectIds = input.assignedLabs
+        .filter((id) => Types.ObjectId.isValid(id))
+        .map((id) => new Types.ObjectId(id));
+
+      // Remove assistant from any labs not in new list
+      await Laboratory.updateMany(
+        { assistants: user._id, _id: { $nin: validLabObjectIds } },
+        { $pull: { assistants: user._id } }
+      );
+
+      // Add assistant to new labs
+      if (validLabObjectIds.length > 0) {
+        await Laboratory.updateMany(
+          { _id: { $in: validLabObjectIds } },
+          { $addToSet: { assistants: user._id } }
+        );
+      }
+
+      user.assignedLabs = validLabObjectIds;
+      await user.save();
+    }
+
+    // 6. Write Audit Log
+    await AuditService.logEvent({
+      actor: actorId,
+      action: 'STAFF_ACCOUNT_PROVISIONED',
+      entityType: 'User',
+      entityId: user._id.toString(),
+      before: beforeSnapshot,
+      after: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        assignedLabs: user.assignedLabs,
+      },
+      ip,
+    });
+
+    // Populate for return
+    const populatedUser = await User.findById(user._id)
+      .populate('department', 'name code')
+      .populate('assignedLabs', 'name code roomNumber building')
+      .lean();
+
+    return {
+      user: populatedUser,
+      message: `Staff account for ${user.name} (${user.role}) successfully provisioned and secured.`,
+    };
   }
 }

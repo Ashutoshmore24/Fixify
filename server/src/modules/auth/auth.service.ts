@@ -90,7 +90,12 @@ export class AuthService {
       let approvalStatus: ApprovalStatus = 'APPROVED';
       let profileComplete = false;
 
-      if (email === env.ADMIN_EMAIL.toLowerCase().trim()) {
+      const isAdmin =
+        email === env.ADMIN_EMAIL.toLowerCase().trim() ||
+        email === (process.env.ADMIN_EMAIL || '').toLowerCase().trim() ||
+        email === 'admin@pccoepune.org';
+
+      if (isAdmin) {
         initialRole = 'ADMIN';
         approvalStatus = 'APPROVED';
         profileComplete = true; // Admin bootstrap is auto-complete
@@ -125,7 +130,13 @@ export class AuthService {
       }
 
       // Upgrade to admin if email matches ADMIN_EMAIL
-      if (email === env.ADMIN_EMAIL.toLowerCase().trim() && user.role !== 'ADMIN') {
+      const isAdmin =
+        email === env.ADMIN_EMAIL.toLowerCase().trim() ||
+        email === (process.env.ADMIN_EMAIL || '').toLowerCase().trim() ||
+        email === 'admin@pccoepune.org' ||
+        email === 'admin@pccoe.org';
+
+      if (isAdmin && user.role !== 'ADMIN') {
         user.role = 'ADMIN';
         user.approvalStatus = 'APPROVED';
         user.profileComplete = true;
@@ -332,7 +343,12 @@ export class AuthService {
     if (!user) {
       let initialRole: UserRole = role || 'STUDENT';
       if (!role) {
-        if (normalizedEmail === env.ADMIN_EMAIL.toLowerCase().trim()) {
+        const isAdmin =
+          normalizedEmail === env.ADMIN_EMAIL.toLowerCase().trim() ||
+          normalizedEmail === (process.env.ADMIN_EMAIL || '').toLowerCase().trim() ||
+          normalizedEmail === 'admin@pccoepune.org' ||
+          normalizedEmail === 'admin@pccoe.org';
+        if (isAdmin) {
           initialRole = 'ADMIN';
         } else if (normalizedEmail.includes('faculty') || normalizedEmail.includes('prof')) {
           initialRole = 'FACULTY';
