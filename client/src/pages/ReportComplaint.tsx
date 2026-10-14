@@ -7,6 +7,8 @@ import {
   MapPin,
   AlertTriangle,
   Search,
+  Monitor,
+  X,
 } from 'lucide-react';
 import { api } from '../lib/axios';
 import { Computer, Laboratory, TicketCategory, LabMapData } from '../types';
@@ -424,12 +426,15 @@ export const ReportComplaint: React.FC = () => {
           {/* ========================================================== */}
           <div className="lg:col-span-7 space-y-5">
             {/* Scanned Lab Card */}
-            <div className="bg-card p-4 sm:p-5 rounded-2xl border border-border shadow-2xs space-y-2">
-              <div className="flex items-center justify-between">
+            <div className="bg-card p-4 sm:p-5 rounded-2xl border border-border shadow-2xs space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Scanned Laboratory
+                    Active Laboratory Session
                   </span>
                 </div>
 
@@ -455,19 +460,30 @@ export const ReportComplaint: React.FC = () => {
               </div>
 
               <div>
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                   {currentLab?.name || 'Loading Laboratory...'}
                 </h1>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span>{currentLab?.building}</span>
-                  <span className="mx-1">•</span>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span>{currentLab?.building}</span>
+                  </span>
+                  <span className="text-border">•</span>
                   <span className="font-mono font-semibold">{currentLab?.code}</span>
+                  {labMapData?.hasMap && (
+                    <>
+                      <span className="text-border">•</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Interactive Floor Plan Verified
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
 
-            {/* Step 1: Interactive Laboratory Map (BookMyShow-style layout) */}
+            {/* Step 1: Interactive Laboratory Map */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -487,6 +503,49 @@ export const ReportComplaint: React.FC = () => {
                   </span>
                 )}
               </div>
+
+              {/* Selected Workstation Banner / Guidance Card */}
+              {selectedComputer ? (
+                <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-between gap-3 animate-in fade-in-50 duration-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-2xs shrink-0">
+                      <Monitor className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-foreground">
+                          {selectedComputer.label}
+                        </span>
+                        <Badge variant="outline" size="sm" className="font-mono text-[10px] bg-background">
+                          {selectedComputer.assetTag}
+                        </Badge>
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                          Active Selection
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Workstation coordinates linked. Complete issue details on the right to register.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedComputerId('')}
+                    className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition shrink-0"
+                    title="Deselect workstation"
+                    aria-label="Deselect workstation"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 rounded-2xl bg-muted/40 border border-border/80 flex items-center gap-2.5 text-xs text-muted-foreground">
+                  <span className="text-sm shrink-0">📍</span>
+                  <span>
+                    Click any available workstation on the floor plan below to pin the fault location.
+                  </span>
+                </div>
+              )}
 
               {/* Top-View Visual Layout Map Component */}
               <LabInteractiveMap
@@ -619,6 +678,17 @@ export const ReportComplaint: React.FC = () => {
               >
                 {isSubmitting ? 'Registering Complaint...' : 'Register Complaint'}
               </button>
+
+              {!selectedComputerId && (
+                <p className="hidden lg:block text-center text-[11px] text-amber-600 dark:text-amber-400">
+                  Select a workstation on the floor plan above to proceed.
+                </p>
+              )}
+              {selectedComputerId && description.trim().length < 10 && (
+                <p className="hidden lg:block text-center text-[11px] text-muted-foreground">
+                  Please describe the issue (minimum 10 characters).
+                </p>
+              )}
             </div>
           </div>
         </div>
