@@ -425,6 +425,17 @@ export const LabInteractiveMap: React.FC<LabInteractiveMapProps> = ({
     });
   }, [mapData?.computers]);
 
+  // Bind by PC number, rather than array position: imported inventories can
+  // contain duplicate labels. Keep ticket/highlight context on the right seat.
+  const seatComputers = useMemo(() => layout?.seats.map(seat => {
+    const matches = sortedComputers.filter(pc =>
+      parseInt(pc.label.match(/\d+/)?.[0] || '0', 10) === seat.seatIndex);
+    return matches.find(pc => pc._id === highlightComputerId || pc._id === selectedComputerId)
+      || matches.find(pc => pc.activeTicket)
+      || matches.find(pc => pc.assetTag === `${layout.code}-PC-${String(seat.seatIndex).padStart(2, '0')}`)
+      || matches[0];
+  }) || [], [layout, sortedComputers, highlightComputerId, selectedComputerId]);
+
   // Theme-aware architectural palette for the floor plan canvas
   const canvasTheme = useMemo(
     () =>
@@ -480,8 +491,9 @@ export const LabInteractiveMap: React.FC<LabInteractiveMapProps> = ({
   }
 
   // Derive inventory and active ticket statistics from real backend data
-  const totalCount = mapData.computers?.length || layout?.seats.length || 0;
-  const busyCount = mapData.computers?.filter((c) => Boolean(c.activeTicket)).length || 0;
+  const visibleComputers = layout ? seatComputers : mapData.computers;
+  const totalCount = layout ? layout.seats.length : visibleComputers.length;
+  const busyCount = visibleComputers.filter((c) => Boolean(c?.activeTicket)).length;
   const availableCount = Math.max(0, totalCount - busyCount);
 
   // Fallback: When a laboratory does not yet have an architectural floor plan
@@ -1052,12 +1064,7 @@ export const LabInteractiveMap: React.FC<LabInteractiveMapProps> = ({
             {/* INDIVIDUAL WORKSTATION PCS */}
             {layout.seats.map((seat) => {
               // Bind seat to real database computer from sorted inventory
-              const computer =
-                sortedComputers[seat.seatIndex - 1] ||
-                sortedComputers.find((c) => {
-                  const num = parseInt(c.label.match(/\d+/)?.[0] || '0', 10);
-                  return num === seat.seatIndex;
-                });
+              const computer = seatComputers[seat.seatIndex - 1];
 
               const isBusy = Boolean(computer?.activeTicket);
               const isSelected =

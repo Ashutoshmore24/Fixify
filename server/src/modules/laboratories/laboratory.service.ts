@@ -129,12 +129,15 @@ export class LaboratoryService {
     const pcByIndex = new Map<number, typeof computersWithActiveTickets[0]>();
     const pcByLabel = new Map<string, typeof computersWithActiveTickets[0]>();
 
-    computersWithActiveTickets.forEach((pc, idx) => {
-      pcByIndex.set(idx + 1, pc);
+    computersWithActiveTickets.forEach((pc) => {
       const matchNum = pc.label.match(/\d+/);
       if (matchNum) {
         const num = parseInt(matchNum[0], 10);
-        pcByIndex.set(num, pc);
+        const existing = pcByIndex.get(num);
+        const canonicalTag = `${mapConfig.code}-PC-${String(num).padStart(2, '0')}`;
+        if (!existing || (!existing.activeTicket && (pc.activeTicket || pc.assetTag === canonicalTag))) {
+          pcByIndex.set(num, pc);
+        }
       }
       pcByLabel.set(pc.label.toUpperCase(), pc);
       pcByLabel.set(pc.assetTag.toUpperCase(), pc);
