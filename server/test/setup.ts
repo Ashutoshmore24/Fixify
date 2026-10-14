@@ -3,6 +3,10 @@ import { startTestDb, stopTestDb, clearTestDb } from './helpers/db.helper';
 
 // Ensure test environment variables
 process.env.NODE_ENV = 'test';
+process.env.AUTH_MODE = 'firebase';
+process.env.CLOUDINARY_CLOUD_NAME = 'test-cloud';
+process.env.CLOUDINARY_API_KEY = 'test-key';
+process.env.CLOUDINARY_API_SECRET = 'test-api-secret';
 process.env.JWT_SECRET = 'test_jwt_secret_key_long_enough_for_testing_12345';
 process.env.JWT_EXPIRES_IN = '15m';
 process.env.COOKIE_SECRET = 'test_cookie_secret_at_least_32_characters';

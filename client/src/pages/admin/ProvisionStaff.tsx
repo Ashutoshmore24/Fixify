@@ -72,26 +72,10 @@ export const ProvisionStaff: React.FC = () => {
   });
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Security Guard: Defense-in-depth role check
-  if (!user || user.role !== 'ADMIN') {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-14 h-14 bg-destructive/10 text-destructive rounded-2xl flex items-center justify-center mb-4">
-          <ShieldAlert className="w-8 h-8" />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground" data-testid="access-denied">
-          Access Denied
-        </h1>
-        <p className="text-sm text-muted-foreground mt-2 max-w-md">
-          Staff provisioning requires institutional Administrator privileges. Your role does not have authorization to view or execute provisioning actions.
-        </p>
-      </div>
-    );
-  }
-
   // 1. Fetch Staff & Available Labs via Admin API
   const { data, isLoading, error, refetch } = useQuery<ProvisioningDataResponse>({
     queryKey: ['admin-provision-staff'],
+    enabled: user?.role === 'ADMIN',
     queryFn: async () => {
       const res = await api.get('/admin/provision-staff');
       return res.data?.data;
@@ -121,8 +105,9 @@ export const ProvisionStaff: React.FC = () => {
         assignedLabs: [],
       });
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to provision staff account.';
+    onError: (err: Error) => {
+      const apiError = err as Error & { response?: { data?: { error?: { message?: string } } } };
+      const msg = apiError.response?.data?.error?.message || err.message || 'Failed to provision staff account.';
       setFormError(msg);
       addToast({
         title: 'Provisioning Error',
@@ -131,6 +116,23 @@ export const ProvisionStaff: React.FC = () => {
       });
     },
   });
+
+  // Security Guard: Defense-in-depth role check
+  if (!user || user.role !== 'ADMIN') {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-14 h-14 bg-destructive/10 text-destructive rounded-2xl flex items-center justify-center mb-4">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground" data-testid="access-denied">
+          Access Denied
+        </h1>
+        <p className="text-sm text-muted-foreground mt-2 max-w-md">
+          Staff provisioning requires institutional Administrator privileges. Your role does not have authorization to view or execute provisioning actions.
+        </p>
+      </div>
+    );
+  }
 
   const staffList = data?.staff || [];
   const labsList = data?.laboratories || [];
@@ -311,12 +313,12 @@ export const ProvisionStaff: React.FC = () => {
                   <TableCell className="text-xs">
                     {staffUser.assignedLabs && staffUser.assignedLabs.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {staffUser.assignedLabs.map((l: any) => (
+                        {staffUser.assignedLabs.map((l) => (
                           <span
-                            key={l._id || l.code}
+                            key={typeof l === 'string' ? l : l._id}
                             className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-secondary text-secondary-foreground"
                           >
-                            {l.code || l.roomNumber || l.name}
+                            {typeof l === 'string' ? l : l.code || l.name}
                           </span>
                         ))}
                       </div>
@@ -393,7 +395,7 @@ export const ProvisionStaff: React.FC = () => {
                 </label>
                 <Select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as ProvisionStaffPayload['role'] })}
                 >
                   <option value="LAB_ASSISTANT">LAB_ASSISTANT</option>
                   <option value="ADMIN">ADMIN</option>

@@ -60,6 +60,7 @@ export interface Department {
 }
 
 export interface Laboratory {
+  roomNumber?: string;
   _id: string;
   name: string;
   code: string;

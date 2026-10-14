@@ -322,6 +322,8 @@ On Windows Command Prompt or PowerShell, use the equivalent file-copy command if
 
 Update both files with your configuration values.
 
+For local password setup without Firebase, follow [the local setup guide](docs/RUN.md). Staff credentials belong only in the Git-ignored `credentials.env` file.
+
 ### Step 6: Start the Application
 
 Open two terminals from the repository root.

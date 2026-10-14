@@ -7,6 +7,20 @@ import { NotFoundError, UnauthorizedError } from '../../common/errors/app-error'
 import { AuditService } from '../audit/audit.service';
 
 export class AuthController {
+  public static async registerLocal(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await AuthService.registerLocal(req.body.email, req.body.password, req.body.profile);
+      sendSuccess(res, { message: 'Local account created. You can now sign in.' }, 201);
+    } catch (error) { next(error); }
+  }
+  public static async passwordLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { user, token } = await AuthService.loginWithPassword(req.body.email, req.body.password);
+      setAuthCookie(res, token);
+      await AuditService.logEvent({ actor: user._id, action: 'USER_LOGIN_LOCAL', entityType: 'USER', entityId: user._id, ip: req.ip });
+      sendSuccess(res, { user: { ...user.toObject(), id: user._id }, profileComplete: user.profileComplete, approvalStatus: user.approvalStatus });
+    } catch (error) { next(error); }
+  }
   /**
    * Session authentication endpoint: accepts Firebase ID token and issues JWT session cookie.
    */

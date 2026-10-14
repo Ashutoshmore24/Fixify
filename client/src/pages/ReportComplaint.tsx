@@ -85,7 +85,7 @@ export const ReportComplaint: React.FC = () => {
                 (l.labCode && l.labCode === labCodeFromQuery) ||
                 l.code === labCodeFromQuery.toUpperCase() ||
                 l.code.replace(/^LAB-/, '') === cleanQuery ||
-                (l as any).roomNumber === cleanQuery
+                l.roomNumber === cleanQuery
             ) || labs[0] || null;
           setCurrentLab(matched);
         }

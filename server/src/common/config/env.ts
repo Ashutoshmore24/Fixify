@@ -1,9 +1,14 @@
 import { config } from 'dotenv';
 import path from 'path';
+import dns from 'dns';
+import fs from 'fs';
 import { z } from 'zod';
 
 // Load environment file
-config({ path: path.resolve(__dirname, '../../../.env') });
+export const serverRoot = fs.existsSync(path.resolve(__dirname, '../../../package.json'))
+  ? path.resolve(__dirname, '../../..')
+  : path.resolve(__dirname, '../../../..');
+config({ path: path.join(serverRoot, '.env') });
 
 const PUBLIC_EMAIL_DOMAINS = [
   'gmail.com',
@@ -20,10 +25,15 @@ const PUBLIC_EMAIL_DOMAINS = [
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    AUTH_MODE: z.enum(['firebase', 'local']).default('firebase'),
+    ALLOW_PUBLIC_EMAIL_DOMAINS: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+    EDGE_PROXY_SECRET: z.string().default(''),
     PORT: z.coerce.number().default(5000),
-    SERVER_URL: z.string().default('http://localhost:5000'),
+    SERVER_URL: z.string().default(process.env.RENDER_EXTERNAL_URL || 'http://localhost:5000'),
     CLIENT_URL: z.string().default('http://localhost:5173'),
     MONGODB_URI: z.string().default('mongodb://127.0.0.1:27017/fixify'),
+    DNS_SERVERS: z.string().default(''),
     JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters in non-prod'),
     JWT_EXPIRES_IN: z.string().default('15m'),
     COOKIE_SECRET: z.string().default('fixify-default-cookie-secret-key-salt-32chars'),
@@ -53,6 +63,9 @@ const envSchema = z
   .superRefine((data, ctx) => {
     // Strict production security validations
     if (data.NODE_ENV === 'production') {
+      if (data.AUTH_MODE === 'local') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['AUTH_MODE'], message: 'Local password mode is only available for development and tests.' });
+      }
       // 1. JWT secret length and placeholder refusal
       if (data.JWT_SECRET.length < 32) {
         ctx.addIssue({
@@ -75,7 +88,7 @@ const envSchema = z
       // 2. Public email domain refusal in production
       const domains = data.ALLOWED_EMAIL_DOMAINS.split(',').map((d) => d.trim().toLowerCase());
       const publicDomainFound = domains.find((d) => PUBLIC_EMAIL_DOMAINS.includes(d));
-      if (publicDomainFound) {
+      if (publicDomainFound && !data.ALLOW_PUBLIC_EMAIL_DOMAINS) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['ALLOWED_EMAIL_DOMAINS'],
@@ -106,3 +119,4 @@ export const parseEnv = (override?: Record<string, unknown>): EnvConfig => {
 };
 
 export const env = parseEnv();
+if (env.DNS_SERVERS) dns.setServers(env.DNS_SERVERS.split(',').map(server => server.trim()).filter(Boolean));

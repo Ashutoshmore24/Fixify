@@ -3,7 +3,7 @@ import { Readable } from 'stream';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { env } from '../config/env';
+import { env, serverRoot } from '../config/env';
 import { logger } from '../utils/logger';
 import { BadRequestError, AppError } from '../errors/app-error';
 
@@ -133,6 +133,9 @@ export class CloudinaryService {
     }
 
     // Local filesystem fallback (per IMPLEMENTATION_PLAN.md REQ-1.6)
+    if (env.NODE_ENV === 'production') {
+      throw new AppError('Image uploads require Cloudinary configuration on the hosted service.', 503, 'UPLOAD_PROVIDER_UNCONFIGURED');
+    }
     return this.saveToLocalFallback(buffer, originalFilename, mimeType);
   }
 
@@ -168,7 +171,7 @@ export class CloudinaryService {
     // If local fallback image
     if (publicId.startsWith('local:')) {
       const filename = publicId.replace('local:', '');
-      const uploadsDir = path.resolve(__dirname, '../../../public/uploads');
+      const uploadsDir = path.join(serverRoot, 'public/uploads');
       const targetPath = path.join(uploadsDir, filename);
       if (fs.existsSync(targetPath)) {
         try {
@@ -202,7 +205,7 @@ export class CloudinaryService {
     originalFilename: string,
     mimeType: string
   ): UploadResult {
-    const uploadsDir = path.resolve(__dirname, '../../../public/uploads');
+    const uploadsDir = path.join(serverRoot, 'public/uploads');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }

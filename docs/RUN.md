@@ -1,3 +1,39 @@
+# Local setup without Firebase
+
+This checkout supports local password login for development. The supplied settings are saved in Git-ignored server/.env, client/.env, and credentials.env. Staff passwords are stored as salted scrypt hashes in MongoDB.
+
+From the repository root:
+
+```powershell
+npm install
+npm run seed
+npm run dev
+```
+
+Open http://localhost:5173. Sign in with the staff email and password from credentials.env. The administrator opens /admin; lab assistants open /assistant. Students and faculty can create local accounts through the signup page and report complaints. Local mode does not verify ownership of email addresses and must stay in development. Google sign-in, verification emails, and reset emails require Firebase configuration. SMTP notifications require SMTP_USER and SMTP_PASS.
+
+For a fresh checkout, copy server/.env.example to server/.env, client/.env.example to client/.env, and credentials.env.example to credentials.env. Set AUTH_MODE=local on the server and VITE_AUTH_MODE=local on the client. Supply your MongoDB URI, session secrets, and staff passwords. Restart after changing environment files. The seed command creates or updates the seven staff accounts, adds the official 12 laboratories and their workstation records, and preserves existing workstation state. Seeded hardware specifications are placeholders and should be verified against actual equipment.
+
+If Atlas SRV lookup fails on your network, set DNS_SERVERS=8.8.8.8,1.1.1.1 in server/.env. This affects Node's DNS resolver for the app; it does not change Windows network settings.
+
+Validation commands:
+
+```powershell
+npm run typecheck
+npm run lint
+npm test
+npm run test:e2e
+npm run build
+```
+
+Browser tests use a disposable MongoDB replica set and fixture accounts, on ports 15001 and 15174. They do not use the configured Atlas database or staff passwords. Install Chrome before running them, or adjust the Playwright channel to an installed browser. mongodb-memory-server uses a locally installed MongoDB binary when detected; otherwise it downloads one.
+
+The compiled API starts with npm run start --workspace=server after building. For the web interface, use the Vite development server or host client/dist with /api and /socket.io forwarded to the API.
+
+To switch to Firebase, set AUTH_MODE=firebase and VITE_AUTH_MODE=firebase, configure the service account and web configuration below, then run the seed command to provision Firebase staff accounts. Local password authentication is rejected when NODE_ENV=production.
+
+---
+
 # Fixify - Setup and Execution Guide (docs/RUN.md)
 
 This document provides setup instructions for running the Fixify platform with Firebase Authentication.

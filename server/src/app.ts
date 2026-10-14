@@ -2,9 +2,10 @@ import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { env } from './common/config/env';
+import { env, serverRoot } from './common/config/env';
 import { errorHandler } from './common/middleware/error-handler.middleware';
 import { csrfProtection } from './common/middleware/csrf.middleware';
+import { requireGateway } from './common/middleware/gateway.middleware';
 import { campusRateLimiter } from './common/middleware/rate-limit.middleware';
 import { optionalAuth, authenticate, requireRole } from './modules/auth/auth.middleware';
 import { authRoutes } from './modules/auth/auth.routes';
@@ -28,6 +29,8 @@ import fs from 'fs';
 
 export const createApp = (): Application => {
   const app = express();
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
+  app.use(requireGateway);
 
   // 1. Security Headers - Allow popup communication for Google/Firebase Auth
   app.use(
@@ -117,11 +120,11 @@ export const createApp = (): Application => {
   app.use('/api/v1/provision-staff', directProvisionStaffRouter);
 
   // Static uploads directory (local fallback)
-  app.use('/uploads', express.static(path.resolve(__dirname, '../public/uploads')));
+  app.use('/uploads', express.static(path.join(serverRoot, 'public/uploads')));
 
   // Static laboratory map PNGs from root /labs folder
-  const rootLabsDir = fs.existsSync(path.resolve(__dirname, '../../labs'))
-    ? path.resolve(__dirname, '../../labs')
+  const rootLabsDir = fs.existsSync(path.resolve(serverRoot, '../labs'))
+    ? path.resolve(serverRoot, '../labs')
     : path.resolve(process.cwd(), 'labs');
   app.use('/labs', express.static(rootLabsDir));
 

@@ -16,6 +16,9 @@ out/
 .env.production.local
 !.env.example
 credentials.env
+.dev.vars*
+.wrangler/
+deploy/*.env
 
 # Logs
 npm-debug.log*

@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app';
 import { Department } from '../src/modules/departments/department.model';
 import { Laboratory } from '../src/modules/laboratories/laboratory.model';
 import { User } from '../src/modules/auth/auth.model';
 import { AuthService } from '../src/modules/auth/auth.service';
+vi.mock('../src/modules/auth/firebase-admin', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../src/modules/auth/firebase-admin')>(),
+  createOrUpdateFirebaseUser: vi.fn(async () => 'test-staff-uid'),
+}));
 
 describe('Staff Provisioning Security Boundary Tests', () => {
   const app = createApp();
@@ -197,7 +201,7 @@ describe('Staff Provisioning Security Boundary Tests', () => {
       name: 'Mr. Nitin Kurwar',
       email: 'nitin.kurwar@pccoepune.org',
       role: 'LAB_ASSISTANT',
-      password: 'Kurwar@5402#Pccoe',
+      password: 'Fixture-only-password-123!',
       department: compDept._id.toString(),
       assignedLabs: [lab5401._id.toString()],
     };
