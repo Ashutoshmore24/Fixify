@@ -15,6 +15,7 @@ import { ProvisionStaffInput } from './admin.schema';
 import { QrService } from '../qr/qr.service';
 import { generatePlacardsPdf, PlacardLabInfo } from '../qr/pdf.generator';
 import { env } from '../../common/config/env';
+import { hashPassword } from '../auth/password';
 import {
   BadRequestError,
   NotFoundError,
@@ -1672,7 +1673,9 @@ export class AdminService {
     let user = await User.findOne({ email });
 
     // 4. Privileged Firebase Auth provisioning (server-side only)
-    const firebaseUid = await createOrUpdateFirebaseUser({
+    if (env.AUTH_MODE === 'local' && !user && !input.password) throw new BadRequestError('A password is required for a new local account');
+    const passwordHash = env.AUTH_MODE === 'local' && input.password ? await hashPassword(input.password) : undefined;
+    const firebaseUid = env.AUTH_MODE === 'local' ? undefined : await createOrUpdateFirebaseUser({
       email,
       password: input.password,
       displayName: input.name,
@@ -1703,7 +1706,8 @@ export class AdminService {
 
       user.name = input.name;
       user.role = input.role;
-      user.firebaseUid = firebaseUid;
+      if (firebaseUid) user.firebaseUid = firebaseUid;
+      if (passwordHash) user.passwordHash = passwordHash;
       user.approvalStatus = 'APPROVED';
       user.profileComplete = true;
       user.isActive = true;
@@ -1728,6 +1732,7 @@ export class AdminService {
         role: input.role,
         department: deptId,
         firebaseUid,
+        passwordHash,
         approvalStatus: 'APPROVED',
         profileComplete: true,
         isActive: true,

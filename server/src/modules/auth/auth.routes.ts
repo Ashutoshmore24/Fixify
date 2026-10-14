@@ -4,8 +4,11 @@ import { validateRequest } from '../../common/middleware/validate.middleware';
 import { sessionLoginSchema, registerProfileSchema, devLoginSchema } from './auth.schema';
 import { authenticate } from './auth.middleware';
 import { NotFoundError } from '../../common/errors/app-error';
+import { z } from 'zod';
 
 const router = Router();
+router.post('/password', validateRequest({ body: z.object({ email: z.string().email(), password: z.string().min(1).max(128) }) }), AuthController.passwordLogin);
+router.post('/local-register', validateRequest({ body: z.object({ email: z.string().email(), password: z.string().min(8).max(128), profile: registerProfileSchema }) }), AuthController.registerLocal);
 
 // Primary Firebase session endpoint
 router.post(

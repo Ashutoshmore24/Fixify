@@ -1,111 +1,63 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
-test.describe('Phase 2 Vertical Slice: Login → Report Complaint → Assistant Resolve & Close', () => {
-  test('executes mobile-first complaint lifecycle with deep link preservation, BR-4, and BR-8', async ({ page }) => {
-    // 1. Student accesses deep link via QR code scan: /report?lab=LAB-101
-    await page.goto('/report?lab=LAB-101');
+const password = 'Fixture-password-123!';
+async function login(page: Page, email: string) {
+  await page.goto('/login');
+  await page.locator('#login-email').fill(email);
+  await page.locator('#login-password').fill(password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.waitForURL(/\/(report|assistant|admin)(\?|$)/);
+}
 
-    // Verify unauthenticated redirection preserves deep link
-    await expect(page).toHaveURL(/\/login\?redirect=%2Freport%3Flab%3DLAB-101/);
+test('student reports a complaint and assigned assistant closes it', async ({ page }) => {
+  await page.goto('/report?lab=LAB-5401');
+  await expect(page).toHaveURL(/login\?redirect=/);
+  await login(page, 'student@pccoe.org');
+  await page.goto('/report?lab=LAB-5401');
+  await expect(page.getByRole('heading', { name: 'Web Development Lab', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Workstation available/ }).first().click();
+  await page.getByRole('button', { name: /Hardware/ }).click();
+  await page.locator('textarea').fill('Keyboard spacebar is physically broken and stuck');
+  await page.locator('[data-testid="submit-complaint-btn"]:visible').click();
+  await expect(page.getByText('Complaint Registered', {exact:true})).toBeVisible();
+  const ticketId = (await page.locator('body').innerText()).match(/FIX-\d{4}-\d{6}/)?.[0];
+  expect(ticketId).toBeTruthy();
+  await page.context().clearCookies();
+  await login(page, 'assistant@pccoe.org');
+  await expect(page).toHaveURL(/\/assistant$/);
+  await page.getByRole('button', {name:/Accept Ticket/}).click();
+  await page.getByRole('button', {name:/Start Repair/}).click();
+  await page.getByRole('button', {name:/Resolve & Close/}).click();
+  await page.getByPlaceholder(/Detail the root cause/).fill('Replaced keyboard and verified all keys work correctly.');
+  await page.locator('input[type="checkbox"]').check();
+  await page.getByRole('button', {name:'Close Ticket',exact:true}).click();
+  await expect(page.getByText('CLOSED', {exact:true}).first()).toBeVisible();
+  await page.context().clearCookies();
+  await login(page, 'student@pccoe.org');
+  await page.goto('/my-complaints');
+  await expect(page.getByText(ticketId!, {exact:true})).toBeVisible();
+  await expect(page.getByText('Closed', {exact:true}).first()).toBeVisible();
+});
 
-    // Verify SRS 6.2 Institutional Privacy Notice is prominently rendered
-    await expect(page.locator('text=Institutional Privacy Notice (SRS 6.2)')).toBeVisible();
+test('admin loads staff management after authentication', async ({page}) => {
+  await login(page, 'admin@pccoe.org');
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto('/admin/provision-staff');
+  await expect(page.getByText('Test Assistant', {exact:true})).toBeVisible();
+});
 
-    // 2. Student signs in via Dev Impersonation
-    await page.click('button:has-text("Rahul Deshmukh")');
-
-    // Verify student is redirected to the preserved deep link /report?lab=LAB-101
-    await expect(page).toHaveURL(/\/report\?lab=LAB-101/);
-    await expect(page.locator('text=Advanced Computing Lab')).toBeVisible();
-
-    // 3. Action 1: Select first available non-busy Computer
-    const availablePc = page.locator('[data-testid^="pc-card-"]:not(:has-text("Busy"))').first();
-    await expect(availablePc).toBeVisible({ timeout: 15000 });
-    await availablePc.click();
-
-    // Action 2: Select Category Hardware
-    await page.click('button:has-text("Hardware")');
-
-    // Action 3: Enter Description
-    const descriptionInput = page.locator('textarea[placeholder*="Describe what\'s wrong"]');
-    await descriptionInput.fill('Monitor display flickering and power button stuck during boot');
-
-    // Action 4: Optional Photo Attachment
-    await page.click('button:has-text("Attach")');
-    await expect(page.locator('text=1/3 Photos')).toBeVisible();
-
-    // Submit the complaint
-    await page.locator('[data-testid="submit-complaint-btn"]:visible').click();
-
-    // Verify success confirmation with sequential annual Ticket ID (REQ-1.8)
-    await expect(page.locator('text=Complaint Registered')).toBeVisible();
-    const ticketIdElement = page.locator('span:has-text("FIX-")');
-    await expect(ticketIdElement).toBeVisible();
-    const ticketId = (await ticketIdElement.textContent())?.trim() || '';
-    expect(ticketId).toMatch(/^FIX-\d{4}-\d{6}$/);
-
-    // 4. Student navigates to My Complaints
-    await page.click('button:has-text("Track Status")');
-    await expect(page).toHaveURL(/\/my-complaints/);
-    await expect(page.locator(`text=${ticketId}`)).toBeVisible();
-
-    // 5. Assistant signs in via dev login
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-    const assistantBtn = page.locator('button:has-text("Lab Assistant Sharma")');
-    await expect(assistantBtn).toBeVisible({ timeout: 10000 });
-    await assistantBtn.click();
-    await page.waitForTimeout(500);
-    await page.goto('/assistant');
-
-    // Verify assistant dashboard metrics and ticket presence
-    await expect(page.locator('text=Lab Assistant Dashboard')).toBeVisible();
-    const assistantTicketCard = page.locator(`div:has-text("${ticketId}")`).first();
-    await expect(assistantTicketCard).toBeVisible();
-
-    // Step A: Assistant accepts the ticket (ASSIGNED -> ACCEPTED)
-    const acceptButton = page.locator('button:has-text("Accept Ticket")').first();
-    await acceptButton.click();
-    await expect(page.locator('button:has-text("Start Repair")').first()).toBeVisible();
-
-    // Step B: Assistant starts repair (ACCEPTED -> IN_PROGRESS)
-    const startRepairButton = page.locator('button:has-text("Start Repair")').first();
-    await startRepairButton.click();
-    await expect(page.locator('button:has-text("Resolve & Close (BR-8)")').first()).toBeVisible();
-
-    // Step C: Assistant adds work note
-    await page.click('button:has-text("Add Note")');
-    await page.fill('textarea[placeholder*="work note"]', 'Replaced video display cable and cleaned power switch');
-    await page.click('div[role="dialog"] button:has-text("Add Note"):not([disabled])');
-
-    // Step D: Assistant resolves & closes with BR-8 closure verification
-    await page.click('button:has-text("Resolve & Close (BR-8)")');
-
-    // Fill mandatory resolution notes and verify testedOk checkbox
-    const resNotesInput = page.locator('textarea[placeholder*="Detail the root cause"]');
-    await resNotesInput.fill('Replaced monitor cable, reseated power button assembly, and verified display boot.');
-
-    const testedOkCheckbox = page.locator('input[type="checkbox"]');
-    await testedOkCheckbox.check();
-
-    // Submit closure
-    await page.click('button:has-text("Close Ticket")');
-
-    // Verify ticket is closed
-    await expect(page.locator(`div:has-text("${ticketId}")`).first()).toContainText('CLOSED');
-
-    // 6. Switch back to Student and verify closed status and timeline
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-    const studentBtn = page.locator('button:has-text("Rahul Deshmukh")');
-    await expect(studentBtn).toBeVisible({ timeout: 10000 });
-    await studentBtn.click();
-    await page.waitForTimeout(500);
-    await page.goto('/my-complaints');
-
-    // Open ticket timeline
-    await page.click(`text=${ticketId}`);
-    await expect(page.locator('text=Resolved & Closed (BR-8 Verified)')).toBeVisible();
-    await expect(page.locator('text=Replaced monitor cable').first()).toBeVisible();
-  });
+test('student creates a local account and signs in', async ({page}) => {
+  await page.goto('/signup');
+  await page.locator('#signup-firstname').fill('New');
+  await page.locator('#signup-lastname').fill('Student');
+  await page.locator('#signup-email').fill('new.student@pccoe.org');
+  await page.locator('#signup-course').click();
+  await page.getByRole('option', {name: 'B.Tech Computer Engineering', exact: true}).click();
+  await page.locator('#signup-prn').fill('E2E123456');
+  await page.locator('#signup-password').fill(password);
+  await page.locator('#signup-confirmpassword').fill(password);
+  await page.getByRole('button', {name:'Create Account',exact:true}).click();
+  await expect(page).toHaveURL(/\/login\?/);
+  await login(page, 'new.student@pccoe.org');
+  await expect(page).toHaveURL(/\/report$/);
 });

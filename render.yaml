@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: fixify-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build --workspace=server
+    startCommand: npm run start --workspace=server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: PUPPETEER_SKIP_DOWNLOAD
+        value: "true"
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_MODE
+        value: firebase
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: ALLOW_PUBLIC_EMAIL_DOMAINS
+        value: "true"
+      - key: ALLOWED_EMAIL_DOMAINS
+        value: pccoepune.org,pccoe.org,student.pccoe.org,faculty.pccoe.org,gmail.com
+      - key: ADMIN_EMAIL
+        value: admin@pccoepune.org
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: EDGE_PROXY_SECRET
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false

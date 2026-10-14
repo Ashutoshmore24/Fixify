@@ -7,9 +7,14 @@
     "client"
   ],
   "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test:e2e": "playwright test",
+    "test:verification": "playwright test --config=playwright.verification.config.ts",
     "dev:server": "npm run dev --workspace=server",
     "dev:client": "npm run dev --workspace=client",
     "build": "npm run build --workspaces",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs",
+    "deploy:cloudflare": "wrangler deploy",
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",
@@ -17,9 +22,9 @@
     "docs:diagrams": "node scripts/render-diagrams.mjs"
   },
   "devDependencies": {
-    "@esbuild/win32-x64": "^0.28.2",
     "@mermaid-js/mermaid-cli": "^10.9.1",
     "@playwright/test": "^1.63.0",
-    "prettier": "^3.2.5"
+    "prettier": "^3.2.5",
+    "wrangler": "^4.151.0"
   }
 }

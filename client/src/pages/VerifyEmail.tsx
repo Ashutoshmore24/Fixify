@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Mail, RefreshCw, CheckCircle, AlertCircle, ArrowLeft, Sun, Moon, Activity, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Button } from '../components/ui/Button';
 import { FixifyLogo } from '../components/layout/FixifyLogo';
-import { auth, sendEmailVerification, getFriendlyAuthErrorMessage } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, FirebaseUser, getFriendlyAuthErrorMessage } from '../lib/firebase';
+import { getVerificationDelivery, getVerificationErrorMessage, requestVerificationEmail, safeVerificationRedirect } from '../lib/email-verification';
+import { RegisterProfileData } from '../context/AuthContext';
 import { api } from '../lib/axios';
 
 export const VerifyEmail: React.FC = () => {
@@ -14,55 +17,88 @@ export const VerifyEmail: React.FC = () => {
   const { refreshUser } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
-  const emailParam = searchParams.get('email') || auth.currentUser?.email || '';
-  const redirectTarget = searchParams.get('redirect') || '/report';
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
+  const [authReady, setAuthReady] = useState(false);
+  const emailParam = searchParams.get('email') || firebaseUser?.email || '';
+  const redirectTarget = safeVerificationRedirect(searchParams.get('redirect'));
+  const accountMatches = !!firebaseUser && firebaseUser.email?.toLowerCase() === emailParam.toLowerCase();
+  const signInUrl = `/login?redirect=${encodeURIComponent(`/verify-email?email=${encodeURIComponent(emailParam)}&redirect=${encodeURIComponent(redirectTarget)}`)}`;
 
-  const [cooldown, setCooldown] = useState(0);
+  const [delivery, setDelivery] = useState(() => getVerificationDelivery(emailParam));
+  const [now, setNow] = useState(Date.now());
+  const cooldown = Math.max(0, Math.ceil((delivery.nextAllowedAt - now) / 1000));
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const checkInProgress = useRef(false);
+  const lastAutomaticCheck = useRef(0);
   const [notification, setNotification] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => getVerificationDelivery(emailParam).error);
+
+  useEffect(() => onAuthStateChanged(auth, currentUser => {
+    setFirebaseUser(currentUser);
+    setAuthReady(true);
+  }), []);
+
+  useEffect(() => {
+    const sync = () => {
+      const saved = getVerificationDelivery(emailParam);
+      setDelivery(saved);
+      setError(saved.error);
+    };
+    sync();
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, [emailParam]);
 
   // Cooldown countdown
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setInterval(() => {
-      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      setNow(Date.now());
     }, 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
 
   const handleResend = async () => {
-    if (cooldown > 0) return;
+    if (cooldown > 0 || isResending || !accountMatches) return;
     try {
       setIsResending(true);
       setError(null);
       setNotification(null);
 
-      if (auth.currentUser) {
-        await sendEmailVerification(auth.currentUser);
-        setNotification('A fresh verification link has been sent to your institutional email.');
-        setCooldown(60);
-      } else {
-        setError('No active session found. Please sign in to request a verification email.');
+      if (!firebaseUser) return;
+      await firebaseUser.reload();
+      if (firebaseUser.emailVerified) {
+        setNotification('Your email is already verified. Click “I\'ve Verified My Email” to continue.');
+        return;
       }
+      await requestVerificationEmail(firebaseUser, redirectTarget);
+      setNotification('A verification link has been sent. Check your inbox and spam folder.');
     } catch (err) {
-      setError(getFriendlyAuthErrorMessage(err));
+      setError(getVerificationErrorMessage(err));
     } finally {
       setIsResending(false);
+      setDelivery(getVerificationDelivery(emailParam));
+      setNow(Date.now());
     }
   };
 
-  const handleCheckVerified = async () => {
+  const handleCheckVerified = useCallback(async (manual = true) => {
+    if (!accountMatches || checkInProgress.current) return;
+    if (!manual && Date.now() - lastAutomaticCheck.current < 5000) return;
+    lastAutomaticCheck.current = Date.now();
+    checkInProgress.current = true;
     try {
       setIsChecking(true);
-      setError(null);
+      if (manual) { setError(null); setNotification(null); }
 
-      if (auth.currentUser) {
-        await auth.currentUser.reload();
-        if (auth.currentUser.emailVerified) {
+      if (firebaseUser) {
+        await firebaseUser.reload();
+        if (firebaseUser.emailVerified) {
+          setError(null);
+          setNotification('Email verified. Completing sign-in...');
           // Exchange verified ID token for session cookie
-          const idToken = await auth.currentUser.getIdToken(true);
+          const idToken = await firebaseUser.getIdToken(true);
           const res = await api.post('/auth/session', { idToken });
           const user = res.data.data.user;
 
@@ -70,7 +106,8 @@ export const VerifyEmail: React.FC = () => {
           const storedPending = sessionStorage.getItem('fixify_pending_profile');
           if (storedPending && !user.profileComplete) {
             try {
-              const parsed = JSON.parse(storedPending);
+              const parsed = JSON.parse(storedPending) as RegisterProfileData & { email?: string };
+              if (parsed.email?.toLowerCase() !== firebaseUser.email?.toLowerCase()) throw new Error('Pending profile belongs to a different account');
               const profileRes = await api.post('/auth/register-profile', parsed);
               sessionStorage.removeItem('fixify_pending_profile');
               const updatedUser = profileRes.data.data.user;
@@ -98,13 +135,29 @@ export const VerifyEmail: React.FC = () => {
         }
       }
 
-      setError('Email is not verified yet. Please check your inbox and click the verification link.');
+      if (manual) setError('Open the verification link inside the email first. This button checks whether that link has verified your address. If Gmail placed the email in Spam, choose “Not spam” and open its verification link.');
     } catch (err) {
-      setError(getFriendlyAuthErrorMessage(err));
+      if (manual || firebaseUser?.emailVerified) {
+        setNotification(null);
+        setError(getFriendlyAuthErrorMessage(err));
+      }
     } finally {
       setIsChecking(false);
+      checkInProgress.current = false;
     }
-  };
+  }, [accountMatches, firebaseUser, navigate, redirectTarget, refreshUser]);
+
+  useEffect(() => {
+    if (!authReady || !accountMatches) return;
+    const check = () => { if (document.visibilityState === 'visible') void handleCheckVerified(false); };
+    check();
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [authReady, accountMatches, handleCheckVerified]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 relative selection:bg-primary/20">
@@ -149,7 +202,7 @@ export const VerifyEmail: React.FC = () => {
                 Institutional Email Verification
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                We safeguard laboratory access by confirming official @pccoe.org student and faculty accounts.
+                Confirm your email address before accessing Fixify’s reporting tools.
               </p>
             </div>
 
@@ -197,7 +250,7 @@ export const VerifyEmail: React.FC = () => {
               Verify Your Email
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              We've sent a verification link to your institutional address:
+              {delivery.lastSentAt ? 'A verification link was sent to:' : 'Verify your email address to continue:'}
             </p>
             {emailParam && (
               <p className="font-mono text-sm font-semibold text-primary bg-muted/60 border border-border py-1.5 px-3 rounded-xl inline-block max-w-full truncate">
@@ -214,31 +267,42 @@ export const VerifyEmail: React.FC = () => {
           )}
 
           {error && (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-xs flex items-center gap-2 text-left">
+            <div role="alert" className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-xs flex items-center gap-2 text-left">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
+          {authReady && !accountMatches && (
+            <p className="text-xs text-muted-foreground">
+              Sign in as {emailParam || 'the account you want to verify'} to request a link or check verification.{' '}
+              <Link to={signInUrl} className="text-primary underline">Sign in to this account</Link>
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Open the verification link inside the email. If it is in Gmail Spam, select “Not spam” first. Fixify checks verification automatically when you return to this tab.
+          </p>
+
           <div className="space-y-3 pt-2">
             <Button
-              onClick={handleCheckVerified}
+              onClick={() => void handleCheckVerified(true)}
+              disabled={!authReady || !accountMatches || isResending || isChecking}
               isLoading={isChecking}
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold py-2.5 rounded-xl shadow-md transition"
             >
-              I've Verified My Email
+              Check Verification & Continue
             </Button>
 
             <Button
               type="button"
               variant="outline"
               onClick={handleResend}
-              disabled={cooldown > 0 || isResending}
+              disabled={!authReady || !accountMatches || cooldown > 0 || isResending || isChecking}
               isLoading={isResending}
               className="w-full py-2.5 rounded-xl border-border"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isResending ? 'animate-spin' : ''}`} />
-              {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Verification Link'}
+              {cooldown > 0 ? `Resend in ${cooldown}s` : delivery.lastSentAt ? 'Resend Verification Link' : 'Send Verification Link'}
             </Button>
           </div>
 

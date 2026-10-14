@@ -2,6 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { AuthService, JwtTokenPayload } from '../../modules/auth/auth.service';
 import { AUTH_COOKIE_NAME } from '../../modules/auth/auth.middleware';
+import { isTrustedGateway } from '../middleware/gateway.middleware';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -38,6 +39,9 @@ export const initSocketServer = (httpServer: HttpServer): SocketIOServer => {
 
   // Socket.IO Handshake Authentication Middleware
   io.use((socket: Socket, next: (err?: Error) => void) => {
+    if (!isTrustedGateway(socket.handshake.headers['x-fixify-gateway'])) {
+      return next(new Error('Authentication error: Untrusted gateway'));
+    }
     // 1. Validate Origin against CLIENT_URL
     const origin = socket.handshake.headers.origin || socket.handshake.headers.referer;
     if (origin) {

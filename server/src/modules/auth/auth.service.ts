@@ -11,6 +11,7 @@ import mongoose, { Types } from 'mongoose';
 import { User, IUser, UserRole, ApprovalStatus } from './auth.model';
 import { verifyFirebaseIdToken, setFirebaseTokenVerifier, TokenVerifier } from './firebase-admin';
 import { RegisterProfileInput } from './auth.schema';
+import { hashPassword, verifyPassword } from './password';
 
 export interface JwtTokenPayload {
   id: string;
@@ -24,6 +25,34 @@ export interface JwtTokenPayload {
 }
 
 export class AuthService {
+  public static async registerLocal(email: string, password: string, profile: RegisterProfileInput): Promise<void> {
+    if (env.AUTH_MODE !== 'local' || env.NODE_ENV === 'production') throw new NotFoundError('Local authentication is not enabled');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!this.isDomainAllowed(normalizedEmail)) throw new ForbiddenError('Institutional account required');
+    if (await User.exists({ email: normalizedEmail })) throw new ConflictError('Email is already registered');
+    const user = await User.create({ email: normalizedEmail, name: `${profile.firstName} ${profile.lastName}`, role: profile.role, passwordHash: await hashPassword(password) });
+    try {
+      await this.registerProfile(user._id.toString(), profile);
+    } catch (error) {
+      await User.deleteOne({ _id: user._id });
+      throw error;
+    }
+  }
+  public static async loginWithPassword(email: string, password: string): Promise<{ user: IUser; token: string }> {
+    if (env.AUTH_MODE !== 'local' || env.NODE_ENV === 'production') {
+      throw new NotFoundError('Local authentication is not enabled');
+    }
+    const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+passwordHash');
+    if (!user?.passwordHash || !await verifyPassword(password, user.passwordHash)) {
+      throw new UnauthorizedError('Incorrect email or password.');
+    }
+    if (!user.isActive || user.deletedAt) throw new ForbiddenError('Account is deactivated');
+    user.lastLoginAt = new Date();
+    await user.save();
+    const token = this.generateToken(user);
+    user.passwordHash = undefined;
+    return { user, token };
+  }
   /**
    * Injects a custom verifier for unit testing and offline development.
    */

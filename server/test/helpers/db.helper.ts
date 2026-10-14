@@ -1,5 +1,6 @@
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
+import { randomInt } from 'crypto';
 import { connectDatabase, disconnectDatabase } from '../../src/common/database/connection';
 
 let replSet: MongoMemoryReplSet | null = null;
@@ -11,6 +12,7 @@ export const startTestDb = async (): Promise<string> => {
 
   // Initialize in replica set mode so multi-document transactions work in tests
   replSet = await MongoMemoryReplSet.create({
+    instanceOpts: [{ port: randomInt(20000, 40000) }],
     replSet: {
       count: 1,
       storageEngine: 'wiredTiger',

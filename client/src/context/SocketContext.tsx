@@ -18,16 +18,13 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (!user) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setIsConnected(false);
-      }
+      setSocket(null);
+      setIsConnected(false);
       return;
     }
 
     // Connect to backend Socket.IO
-    const s = io(window.location.origin, {
+    const s = io(import.meta.env.VITE_SOCKET_URL || window.location.origin, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
       autoConnect: true,

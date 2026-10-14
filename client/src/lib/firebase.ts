@@ -16,11 +16,12 @@ const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'dummy-dev-api-key',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'fixify-dev.firebaseapp.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'fixify-dev',
-  storageBucket: import.meta.env.VITE_FIREBASE_PROJECT_ID
-    ? `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`
-    : 'fixify-dev.appspot.com',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (import.meta.env.VITE_FIREBASE_PROJECT_ID
+    ? `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`
+    : 'fixify-dev.firebasestorage.app'),
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789:web:abcdef',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || undefined,
 };
 
 // Initialize Firebase singleton
@@ -64,6 +65,8 @@ export function getFriendlyAuthErrorMessage(err: unknown): string {
 
   const code = error?.code || '';
   switch (code) {
+    case 'auth/unverified-email':
+      return 'Please verify your email address before signing in.';
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
     case 'auth/invalid-login-credentials':

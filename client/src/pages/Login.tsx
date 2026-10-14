@@ -22,6 +22,7 @@ import { ForgotPasswordModal } from '../components/auth/ForgotPasswordModal';
 import { getFriendlyAuthErrorMessage } from '../lib/firebase';
 
 export const Login: React.FC = () => {
+  const localAuth = import.meta.env.VITE_AUTH_MODE === 'local';
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { loginWithEmailPassword, loginWithGoogle } = useAuth();
@@ -261,7 +262,9 @@ export const Login: React.FC = () => {
                   <p>{errorMessage}</p>
                   {unverifiedEmail && (
                     <Link
-                      to={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}${requestedRedirect ? `&redirect=${encodeURIComponent(requestedRedirect)}` : ''}`}
+                      to={requestedRedirect?.startsWith('/verify-email?')
+                        ? requestedRedirect
+                        : `/verify-email?email=${encodeURIComponent(unverifiedEmail)}${requestedRedirect ? `&redirect=${encodeURIComponent(requestedRedirect)}` : ''}`}
                       className="inline-block text-primary underline font-medium hover:underline"
                     >
                       Go to email verification page →
@@ -307,6 +310,7 @@ export const Login: React.FC = () => {
                 </label>
                 <button
                   type="button"
+                  disabled={localAuth}
                   onClick={() => setForgotPasswordOpen(true)}
                   className="text-xs text-primary hover:underline transition font-medium"
                 >
@@ -362,7 +366,7 @@ export const Login: React.FC = () => {
             type="button"
             variant="outline"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading || isLoading}
+            disabled={localAuth || isGoogleLoading || isLoading}
             isLoading={isGoogleLoading}
             className="w-full font-semibold py-2.5 rounded-xl shadow-xs transition flex items-center justify-center gap-2.5 border-border"
           >
@@ -384,7 +388,7 @@ export const Login: React.FC = () => {
                 d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
               />
             </svg>
-            Continue with Google
+            {localAuth ? 'Google sign-in requires Firebase setup' : 'Continue with Google'}
           </Button>
 
           {/* Link to Sign up */}
@@ -407,7 +411,9 @@ export const Login: React.FC = () => {
                 <span>🔒</span> Institutional Privacy Notice (SRS 6.2)
               </div>
               <p className="leading-relaxed">
-                Passwords are handled securely by Firebase Authentication and never stored by Fixify; we keep only name, institutional email, PRN/course details and role; no third-party tracking.
+                {localAuth
+                  ? 'Local development mode: passwords are stored as salted hashes. Email verification and password-reset email require Firebase setup. Ask your administrator to reset a staff password.'
+                  : 'Passwords are handled securely by Firebase Authentication; we keep name, institutional email, PRN/course details and role; no third-party tracking.'}
               </p>
             </div>
           </div>

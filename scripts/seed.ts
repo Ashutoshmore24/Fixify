@@ -1,28 +1,23 @@
 import path from 'path';
 import dotenv from 'dotenv';
-import { nanoid } from 'nanoid';
 
 // Load server .env
 dotenv.config({ path: path.resolve(__dirname, '../server/.env') });
 
 import mongoose from 'mongoose';
 import { Department } from '../server/src/modules/departments/department.model';
-import { Laboratory } from '../server/src/modules/laboratories/laboratory.model';
-import { Computer } from '../server/src/modules/computers/computer.model';
-import { User } from '../server/src/modules/auth/auth.model';
 import { Setting } from '../server/src/modules/settings/setting.model';
-import { OFFICIAL_LAB_ROSTER } from '../server/src/modules/laboratories/lab-maps.config';
-import { provisionAllStaff, STAFF_ROSTER } from './provision-staff';
+import { provisionAllStaff } from './provision-staff';
 
 export const seedDatabase = async () => {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/fixify';
-  console.log(`Connecting to MongoDB for seeding at: ${mongoUri.replace(/:([^:@]{4})[^:@]*@/, ':****@')}`);
+  console.log('Connecting to the configured MongoDB database for seeding...');
 
   if (mongoose.connection.readyState === 0) {
     await mongoose.connect(mongoUri);
   }
 
-  console.log('Seeding Official Production Staff, Real Accounts & Laboratories...');
+  console.log('Provisioning configured staff accounts and laboratory records...');
 
   // 1. Run real staff provisioning pipeline (creates/syncs Firebase Auth + MongoDB + 12 Labs)
   await provisionAllStaff();

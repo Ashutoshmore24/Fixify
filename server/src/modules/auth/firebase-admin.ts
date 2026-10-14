@@ -2,7 +2,7 @@ import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import fs from 'fs';
 import path from 'path';
-import { env } from '../../common/config/env';
+import { env, serverRoot } from '../../common/config/env';
 import { logger } from '../../common/utils/logger';
 import { UnauthorizedError } from '../../common/errors/app-error';
 
@@ -61,6 +61,7 @@ export function getFirebaseAdminApp(): App {
 
   // 2. Check candidate service account file paths
   const candidatePaths = [
+    env.FIREBASE_SERVICE_ACCOUNT_PATH && path.resolve(serverRoot, env.FIREBASE_SERVICE_ACCOUNT_PATH),
     env.FIREBASE_SERVICE_ACCOUNT_PATH,
     './serviceAccountKey.json',
     'serviceAccountKey.json',
@@ -214,8 +215,8 @@ export async function createOrUpdateFirebaseUser(params: {
         logger.info({ email: params.email, uid: existing.uid }, 'Updated existing Firebase user credentials');
       }
       return existing.uid;
-    } catch (findErr: any) {
-      if (findErr.code === 'auth/user-not-found') {
+    } catch (findErr: unknown) {
+      if ((findErr as { code?: string }).code === 'auth/user-not-found') {
         const newUser = await auth.createUser({
           email: params.email,
           password: params.password,
@@ -227,9 +228,9 @@ export async function createOrUpdateFirebaseUser(params: {
       }
       throw findErr;
     }
-  } catch (err: any) {
-    logger.warn({ err: err?.message, email: params.email }, 'Firebase Admin live provisioning notice - using fallback UID');
-    return `fb_staff_${Math.random().toString(36).substring(2, 12)}`;
+  } catch (err: unknown) {
+    logger.error({ email: params.email }, 'Firebase staff provisioning failed');
+    throw err;
   }
 }
 

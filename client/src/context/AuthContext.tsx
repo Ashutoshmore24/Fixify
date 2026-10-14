@@ -6,12 +6,12 @@ import {
   googleProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithPopup,
   firebaseSignOut,
   FirebaseUser,
 } from '../lib/firebase';
+import { requestVerificationEmail } from '../lib/email-verification';
 
 export interface RegisterProfileData {
   role: 'STUDENT' | 'FACULTY';
@@ -40,7 +40,7 @@ interface AuthContextType {
     email: string,
     password: string,
     profileData: RegisterProfileData
-  ) => Promise<FirebaseUser>;
+  ) => Promise<FirebaseUser | void>;
   registerProfile: (data: RegisterProfileData) => Promise<{ user: User; isPendingApproval: boolean }>;
   sendPasswordReset: (email: string) => Promise<void>;
   resendEmailVerification: () => Promise<void>;
@@ -87,6 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string
   ): Promise<AuthResponseResult> => {
+    if (import.meta.env.VITE_AUTH_MODE === 'local') {
+      const res = await api.post('/auth/password', { email, password });
+      const localUser: User = res.data.data.user;
+      setUser(localUser);
+      return { user: localUser, requiresProfileCompletion: !localUser.profileComplete, isPendingApproval: localUser.approvalStatus === 'PENDING_APPROVAL' };
+    }
     // 1. Authenticate with Firebase
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
@@ -153,15 +159,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string,
     profileData: RegisterProfileData
-  ): Promise<FirebaseUser> => {
+  ): Promise<FirebaseUser | void> => {
+    if (import.meta.env.VITE_AUTH_MODE === 'local') {
+      await api.post('/auth/local-register', { email, password, profile: profileData });
+      return;
+    }
     // 1. Create Firebase user
     const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-    // 2. Send email verification
-    await sendEmailVerification(cred.user);
-
-    // 3. Stash profile payload for auto-submission once verified
+    // Save the profile before sending: an email-delivery failure must not lose registration data.
     sessionStorage.setItem('fixify_pending_profile', JSON.stringify({ ...profileData, email }));
+    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/report';
+    try {
+      await requestVerificationEmail(cred.user, redirect);
+    } catch {
+      // The account exists. The verification page displays the saved delivery error and retry time.
+    }
 
     return cred.user;
   };
@@ -185,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resendEmailVerification = async (): Promise<void> => {
     if (auth.currentUser) {
-      await sendEmailVerification(auth.currentUser);
+      await requestVerificationEmail(auth.currentUser);
     } else {
       throw new Error('No user is currently active to send verification email.');
     }

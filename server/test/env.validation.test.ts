@@ -59,4 +59,12 @@ describe('Environment Configuration & Security Validation', () => {
       'faculty.pccoe.org',
     ]);
   });
+
+  it('allows verified Gmail accounts in production only with explicit policy opt-in', () => {
+    const config = parseEnv({ NODE_ENV: 'production', AUTH_MODE: 'firebase',
+      JWT_SECRET: '84b1d7b224b5af721cd2ed1f7bc7d4cd5d334d8a',
+      ALLOWED_EMAIL_DOMAINS: 'pccoepune.org,gmail.com', ALLOW_PUBLIC_EMAIL_DOMAINS: 'true' });
+    expect(config.allowedDomainsList).toContain('gmail.com');
+    expect(config.AUTH_MODE).toBe('firebase');
+  });
 });

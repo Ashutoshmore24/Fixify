@@ -13,6 +13,7 @@ export type ApprovalStatus = 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
 export interface IUser extends Document {
   _id: Types.ObjectId;
   firebaseUid?: string;
+  passwordHash?: string;
   firstName?: string;
   lastName?: string;
   name: string;
@@ -48,6 +49,7 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>(
   {
+    passwordHash: { type: String, select: false },
     firebaseUid: {
       type: String,
       unique: true,

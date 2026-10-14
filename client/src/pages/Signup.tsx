@@ -174,6 +174,10 @@ export const Signup: React.FC = () => {
       };
 
       await registerWithEmailPassword(email.trim(), password, profilePayload);
+      if (import.meta.env.VITE_AUTH_MODE === 'local') {
+        navigate(`/login?redirect=${encodeURIComponent(redirectTarget)}`, { replace: true });
+        return;
+      }
 
       // Successfully registered Firebase user & dispatched email verification
       navigate(
@@ -336,7 +340,7 @@ export const Signup: React.FC = () => {
             type="button"
             variant="outline"
             onClick={handleGoogleSignUp}
-            disabled={isGoogleLoading || isLoading}
+            disabled={import.meta.env.VITE_AUTH_MODE === 'local' || isGoogleLoading || isLoading}
             isLoading={isGoogleLoading}
             className="w-full font-semibold py-2.5 rounded-xl shadow-xs transition flex items-center justify-center gap-2.5 border-border"
           >
@@ -358,7 +362,7 @@ export const Signup: React.FC = () => {
                 d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
               />
             </svg>
-            Continue with Google
+            {import.meta.env.VITE_AUTH_MODE === 'local' ? 'Google sign-in requires Firebase setup' : 'Continue with Google'}
           </Button>
 
           {/* Divider */}
@@ -706,7 +710,9 @@ export const Signup: React.FC = () => {
                 <span>🔒</span> Institutional Privacy Notice (SRS 6.2)
               </div>
               <p className="leading-relaxed">
-                Passwords are handled securely by Firebase Authentication and never stored by Fixify; we keep only name, institutional email, PRN/course details and role; no third-party tracking.
+                {import.meta.env.VITE_AUTH_MODE === 'local'
+                  ? 'Local development mode stores salted password hashes. Email verification requires Firebase setup.'
+                  : 'Passwords are handled securely by Firebase Authentication; we keep name, institutional email, PRN/course details and role; no third-party tracking.'}
               </p>
             </div>
           </div>

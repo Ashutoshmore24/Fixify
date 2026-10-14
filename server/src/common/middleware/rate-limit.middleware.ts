@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import { Request } from 'express';
 import { env } from '../config/env';
+import { isIP } from 'net';
 
 export const campusRateLimiter = rateLimit({
   windowMs: env.RATE_LIMIT_UNAUTH_WINDOW_MS,
@@ -12,6 +13,8 @@ export const campusRateLimiter = rateLimit({
     if (req.user?.id) {
       return `user_${req.user.id}`;
     }
+    const clientIp = req.headers['x-fixify-client-ip'];
+    if (env.EDGE_PROXY_SECRET && typeof clientIp === 'string' && isIP(clientIp)) return clientIp;
     return req.ip || 'ip_unknown';
   },
   standardHeaders: true,
