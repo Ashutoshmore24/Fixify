@@ -64,11 +64,28 @@ const WorkstationElement: React.FC<WorkstationElementProps> = ({
 
   // Theme-aware architectural palette for workstation symbols
   const styles = useMemo(() => {
+    if (!computer) {
+      // Unassigned Physical Slot (Layout slot without registered DB PC)
+      return {
+        casingFill: isDark ? '#090d14' : '#f8fafc',
+        casingStroke: isDark ? '#1e293b' : '#cbd5e1',
+        casingDash: '2 2',
+        screenFill: isDark ? '#0f172a' : '#f1f5f9',
+        standFill: isDark ? '#1e293b' : '#cbd5e1',
+        keyboardFill: isDark ? '#060a10' : '#f8fafc',
+        keyboardStroke: isDark ? '#1e293b' : '#e2e8f0',
+        ledFill: 'transparent',
+        ringStroke: 'transparent',
+        haloFill: 'transparent',
+      };
+    }
+
     if (isBusy) {
       // Under Maintenance / Active Ticket (Amber / Ochre)
       return {
         casingFill: isDark ? '#271705' : '#fef3c7',
         casingStroke: isDark ? '#f59e0b' : '#d97706',
+        casingDash: undefined,
         screenFill: isDark ? '#451a03' : '#fde68a',
         standFill: isDark ? '#78350f' : '#b45309',
         keyboardFill: isDark ? '#1f1304' : '#fef9c3',
@@ -84,6 +101,7 @@ const WorkstationElement: React.FC<WorkstationElementProps> = ({
       return {
         casingFill: isDark ? '#082f49' : '#e0f2fe',
         casingStroke: isDark ? '#38bdf8' : '#0284c7',
+        casingDash: undefined,
         screenFill: isDark ? '#0284c7' : '#bae6fd',
         standFill: isDark ? '#0369a1' : '#0284c7',
         keyboardFill: isDark ? '#0c2438' : '#f0f9ff',
@@ -99,6 +117,7 @@ const WorkstationElement: React.FC<WorkstationElementProps> = ({
       return {
         casingFill: isDark ? '#062d25' : '#ccfbf1',
         casingStroke: isDark ? '#2dd4bf' : '#0d9488',
+        casingDash: undefined,
         screenFill: isDark ? '#0f766e' : '#99f6e4',
         standFill: isDark ? '#14b8a6' : '#0f766e',
         keyboardFill: isDark ? '#08201a' : '#f0fdfa',
@@ -113,6 +132,7 @@ const WorkstationElement: React.FC<WorkstationElementProps> = ({
     return {
       casingFill: isDark ? '#0e1823' : '#ffffff',
       casingStroke: isDark ? '#334155' : '#94a3b8',
+      casingDash: undefined,
       screenFill: isDark ? '#1e293b' : '#f1f5f9',
       standFill: isDark ? '#475569' : '#94a3b8',
       keyboardFill: isDark ? '#0b1118' : '#f8fafc',
@@ -121,26 +141,30 @@ const WorkstationElement: React.FC<WorkstationElementProps> = ({
       ringStroke: 'transparent',
       haloFill: 'transparent',
     };
-  }, [isBusy, isSelected, isHovered, readOnly, isDark]);
+  }, [computer, isBusy, isSelected, isHovered, readOnly, isDark]);
 
   return (
     <g
       transform={`translate(${seat.x}, ${seat.y})`}
       role="button"
-      tabIndex={isBusy || readOnly ? -1 : 0}
+      tabIndex={!computer || isBusy || readOnly ? -1 : 0}
       aria-label={
-        isBusy
-          ? 'Workstation under repair'
+        !computer
+          ? 'Physical workstation slot (unassigned)'
+          : isBusy
+          ? `Workstation ${computer.label} under repair`
           : isSelected
-          ? 'Selected faulty workstation'
-          : 'Workstation available. Click to select fault'
+          ? `Selected faulty workstation ${computer.label}`
+          : `Workstation ${computer.label} available. Click to select fault`
       }
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`outline-none select-none ${
-        isBusy
+        !computer
+          ? 'cursor-not-allowed opacity-40'
+          : isBusy
           ? 'cursor-not-allowed opacity-85'
           : readOnly
           ? 'cursor-default'
@@ -245,6 +269,7 @@ const WorkstationElement: React.FC<WorkstationElementProps> = ({
             rx={2}
             fill={styles.casingFill}
             stroke={styles.casingStroke}
+            strokeDasharray={styles.casingDash}
             strokeWidth={1.2}
           />
           {/* Active Screen Surface */}
@@ -305,6 +330,7 @@ const WorkstationElement: React.FC<WorkstationElementProps> = ({
             rx={2}
             fill={styles.casingFill}
             stroke={styles.casingStroke}
+            strokeDasharray={styles.casingDash}
             strokeWidth={1.2}
           />
           {/* Active Screen Surface */}
@@ -560,7 +586,7 @@ export const LabInteractiveMap: React.FC<LabInteractiveMapProps> = ({
       {/* ARCHITECTURAL HEADER: STATUS, LEGEND & ZOOM CONTROLS */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-2xs transition-colors">
         {/* Status Legend (No PC numbers shown) */}
-        <div className="flex items-center gap-4 text-[11px] text-muted-foreground select-none">
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground select-none">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs" />
             <span className="font-medium text-foreground">Available</span>
@@ -571,8 +597,14 @@ export const LabInteractiveMap: React.FC<LabInteractiveMapProps> = ({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-2xs" />
-            <span className="font-medium">Under Repair</span>
+            <span className="font-medium text-amber-700 dark:text-amber-300">Under Repair</span>
           </div>
+          {layout && layout.seats.length > sortedComputers.length && (
+            <div className="flex items-center gap-1.5" title="Physical desk slot present in layout without active computer asset">
+              <span className="w-2.5 h-2.5 rounded-xs border border-dashed border-slate-400 dark:border-slate-500 bg-transparent" />
+              <span className="font-medium text-muted-foreground">Unassigned Slot</span>
+            </div>
+          )}
         </div>
 
         {/* Counter & Zoom Controls */}
