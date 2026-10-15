@@ -136,8 +136,9 @@ Fixify implements role-based access control (RBAC) enforced on both client route
 ## 🔄 Ticket Workflow & Lifecycle
 
 Tickets follow a finite state machine ensuring complete traceability from initial scan to final closure:
+<img width="1536" height="915" alt="ticket_lifecycle" src="https://github.com/user-attachments/assets/5a065c32-d76a-4fba-92db-2f96719c27eb" />
 
-//todo : upload image of ticket workflow
+
 
 ### Ticket Status Definitions
 - `OPEN`: Newly submitted complaint awaiting assignment (fallback when no assistant is configured).
@@ -156,8 +157,8 @@ Tickets follow a finite state machine ensuring complete traceability from initia
 ## 🌐 System Architecture & Deployment
 
 Fixify is architected for seamless local operation and high-availability cloud deployment:
+<img width="1536" height="1024" alt="system_arch" src="https://github.com/user-attachments/assets/f863b022-e3a2-42ae-814f-4c4afe61bbb1" />
 
-## todo: upload image of arch.
 
 ### Cloud Architecture Highlights
 - **Cloudflare Workers:** Serves the frontend single-page application from edge storage with client-side routing fallback. Reverse-proxies `/api`, `/socket.io`, `/labs`, `/uploads`, and `/health` to the backend.
@@ -359,7 +360,7 @@ Fixify supports an offline development mode using salted scrypt password authent
    - In `server/.env`:
      ```ini
      AUTH_MODE=local
-     MONGODB_URI=mongodb://127.0.0.1:27017/fixify?replicaSet=rs0
+     MONGODB_URI=yourmongodb_uri_string
      JWT_SECRET=super_secret_local_dev_key_at_least_32_chars_long
      ```
    - In `client/.env`:
@@ -370,7 +371,7 @@ Fixify supports an offline development mode using salted scrypt password authent
      ```
 
 4. **Set Staff Passwords:**
-   Open `credentials.env` and supply passwords for the administrator and lab assistants (e.g., `admin12345`).
+   Open `credentials.env` and supply passwords for the administrator and lab assistants.
 
 5. **Seed Database & Laboratories:**
    ```bash
@@ -447,8 +448,8 @@ Fixify is configured for seamless deployment on Cloudflare Workers and Render:
 | `JWT_SECRET` | Secret key for signed session JWTs (min 32 chars in prod) | `random_secret_string` |
 | `COOKIE_SECRET` | Secret key for signed cookies | `cookie_secret_string` |
 | `EDGE_PROXY_SECRET` | Gateway secret matching Cloudflare Worker proxy | `shared_proxy_secret` |
-| `ALLOWED_EMAIL_DOMAINS` | Permitted institutional email domains | `pccoepune.org,pccoe.org` |
-| `ADMIN_EMAIL` | Default administrator account email | `admin@pccoepune.org` |
+| `ALLOWED_EMAIL_DOMAINS` | Permitted institutional email domains | `institutional email domains` |
+| `ADMIN_EMAIL` | Default administrator account email | `youradmin_email` |
 | `ESCALATION_TIMEOUT_HOURS` | Unacknowledged ticket SLA timeout | `24` |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud identifier (optional locally) | `your_cloud_name` |
 | `CLOUDINARY_API_KEY` | Cloudinary API access key | `your_api_key` |
@@ -531,13 +532,13 @@ Contributions and issue reports are welcome.
 
 ## 👨‍💻 Team
 
-Fixify was developed as a software engineering capstone project at **Pimpri Chinchwad College of Engineering (PCCOE), Pune, India**:
+Fixify was developed as a software engineering capstone project by :
 
-| Team Member | Academic Email | Focus Area |
+| Team Member | Details | Focus Area |
 | :--- | :--- | :--- |
-| **Ashutosh Sanjay More** | `ashutosh.more@pccoepune.org` | Backend architecture, ticket state machine, security & deployment |
-| **Aniket Ashokrao Gawande** | `aniket.gawande@pccoepune.org` | Database modeling, asset management & data integrity |
-| **Atharv Sampat Shinde** | `atharv.shinde@pccoepune.org` | Frontend architecture, real-time UI & 2D lab floorplans |
+| **Ashutosh Sanjay More** | B.Tech -IT, PCCoE | Backend architecture, ticket state machine, security & deployment |
+| **Aniket Ashokrao Gawande** | B.Tech -IT, PCCoE | Database modeling, asset management & data integrity |
+| **Atharv Sampat Shinde** | B.Tech -IT, PCCoE | Frontend architecture, real-time UI & 2D lab floorplans |
 
 ---
 
