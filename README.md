@@ -536,9 +536,9 @@ Fixify was developed as a software engineering capstone project by :
 
 | Team Member | Details | Focus Area |
 | :--- | :--- | :--- |
-| **Ashutosh Sanjay More** | B.Tech -IT, PCCoE | Backend architecture, ticket state machine, security & deployment |
+| **Ashutosh Sanjay More** | B.Tech -IT, PCCoE | Backend architecture, ticket state machine, 2D lab floorplans, security & deployment |
 | **Aniket Ashokrao Gawande** | B.Tech -IT, PCCoE | Database modeling, asset management & data integrity |
-| **Atharv Sampat Shinde** | B.Tech -IT, PCCoE | Frontend architecture, real-time UI & 2D lab floorplans |
+| **Atharv Sampat Shinde** | B.Tech -IT, PCCoE | Frontend architecture, real-time UI |
 
 ---
 
